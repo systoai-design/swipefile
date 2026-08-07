@@ -20,7 +20,7 @@ Then serve with:     python3 serve.py --directory site
 """
 import argparse, hashlib, json, os, re, glob, shutil, subprocess
 from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit, quote
 from urllib.request import Request, urlopen
 
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -60,6 +60,36 @@ ATTR_URL = re.compile(r"""((?:src|href|poster|data-src)\s*=\s*)(["'])([^"']+)(\2
 # where a real photo belongs, on img/source pairs everywhere responsive art
 # direction is used.
 SRCSET_ATTR = re.compile(r'\bsrcset\s*=\s*(["\'])([^"\']+)\1', re.I)
+# Google Tag Manager's own published async-loader snippet, byte-for-byte the
+# same shape on the large majority of GTM-instrumented sites: a bootstrap
+# builds its beacon URL by STRING CONCATENATION at runtime
+# (`'https://…/wisetag?id='+i+dl`), so it is invisible to every URL-attribute
+# and url()-based rewrite pass above — measured live: a mirror with 0 origin
+# refs by every static and asset-level check still fired a real request
+# against the target's own production analytics on load. Matched by its two
+# structural fingerprints (`event:'gtm.js'`, `insertBefore(j,f)`) rather than
+# by container ID, so it generalises to any site's GTM install, and bounded to
+# one `<script>...</script>` so it cannot eat an unrelated adjacent tag.
+GTM_INLINE = re.compile(
+    r'<script(?:(?!</script>)[^>])*>'
+    r'(?:(?!</script>).)*?event:\s*[\'"]gtm\.js[\'"]'
+    r'(?:(?!</script>).)*?insertBefore\(j\s*,\s*f\)'
+    r'(?:(?!</script>).)*?</script>', re.S)
+# The no-JS fallback for the same tag: a live off-origin reference sitting in
+# ordinary renderable markup, invisible to a JS-driven off-origin-request
+# measurement (a <noscript> subtree never executes with JS enabled) but real
+# for a screen reader or JS-disabled visit, and still "a live reference to the
+# reference's origin" by the report's own definition either way.
+GTM_NOSCRIPT = re.compile(
+    r'<noscript>\s*<iframe[^>]*\bgtm-iframe\b[^>]*></iframe>\s*</noscript>', re.I)
+# Same class as GTM_INLINE, one config value rather than a whole script: a
+# bundled analytics SDK (Mixpanel) reads its token from an embedded runtime
+# config blob and fires its OWN beacon request at load, invisible to every
+# markup-level rewrite. Scoped to the key inside the `"mixpanel":{...}` object
+# specifically — a bare `"token":"..."` pattern would also hit unrelated
+# tokens (OAuth, CSRF, other vendors' own "token" keys) sitting elsewhere in
+# the same config blob.
+MIXPANEL_TOKEN = re.compile(r'("mixpanel":\{[^}]*?"token":")[a-f0-9]{16,64}(")')
 REL_PATTERNS = (REL_SPEC, CSS_URL, ATTR_URL)
 SKIP_SCHEMES = ('data:', 'blob:', '#', 'mailto:', 'tel:', 'javascript:', 'http://', 'https://', '//')
 IMPORTMAP_RE = re.compile(r'<script[^>]*type=["\']importmap["\'][^>]*>(.*?)</script>', re.S | re.I)
@@ -85,6 +115,20 @@ def parse_importmap(html):
         return {}
 
 
+def safe_urljoin(base, spec):
+    """urljoin, but a spec pulled out of minified JS by regex is not guaranteed
+    to be a URL. A template-literal interpolation like `//${n.value}/x.js`
+    matches REL_SPEC's quote-delimited capture (backtick is a legal quote there
+    for real dynamic imports), and urljoin's bracket-host parser raises
+    ValueError on the stray `${`. One bad match crashing the whole mirror after
+    minutes of fetching is worse than silently dropping that one non-URL.
+    """
+    try:
+        return urljoin(base, spec)
+    except ValueError:
+        return None
+
+
 def resolve_spec(spec, base, importmap):
     """A specifier's real URL: import map first, else relative to base.
 
@@ -99,14 +143,17 @@ def resolve_spec(spec, base, importmap):
                               key=len, reverse=True):
             if spec.startswith(prefix):
                 return importmap[prefix] + spec[len(prefix):]
-    return urljoin(base, spec)
+    return safe_urljoin(base, spec)
 
 
 def truncate_at_extension(url):
     """Cut a greedily-captured URL at its first valid extension, keeping the query.
 
-    Returns None when nothing that looks like an asset is in it.
+    Returns None when nothing that looks like an asset is in it, or when `url`
+    is already None from a spec that failed to resolve (see safe_urljoin).
     """
+    if url is None:
+        return None
     m = EXT_AT.search(url)
     if not m:
         return None
@@ -170,7 +217,7 @@ def harvest(text, base, importmap=None):
         for cand in s.split(','):
             cand = cand.strip().split()[0] if cand.strip() else ''
             if cand:
-                u = truncate_at_extension(urljoin(base, cand.replace('&amp;', '&')))
+                u = truncate_at_extension(safe_urljoin(base, cand.replace('&amp;', '&')))
                 if u:
                     found.add(u)
     return found
@@ -190,12 +237,27 @@ def cms_siblings(urls):
     return out - set(urls)
 
 
+def fetch_safe(url):
+    """A URL as it should be REQUESTED, distinct from the URL used as the
+    dict key everywhere else in this file.
+
+    A raw space or other unencoded byte in the path — seen live on a CMS that
+    names uploads after their alt text, `United States.svg` — makes urlopen
+    raise InvalidURL before a single byte is sent, dropping the asset outright.
+    Only the path/query get quoted; the original string stays the key used to
+    match and rewrite the same URL as it literally appears in the page markup.
+    """
+    u = urlsplit(url)
+    return urlunsplit((u.scheme, u.netloc, quote(u.path, safe="/%"),
+                       quote(u.query, safe="=&%"), u.fragment))
+
+
 def grab(url, name, outdir):
     """Fetch one asset. An HTML error page written to hero.png is an integrity
     problem, not an asset — reject it here rather than discover it in the diff."""
     dest = os.path.join(outdir, name)
     try:
-        req = Request(url, headers={'User-Agent': UA, 'Accept': ACCEPT})
+        req = Request(fetch_safe(url), headers={'User-Agent': UA, 'Accept': ACCEPT})
         with urlopen(req, timeout=45) as r:
             if r.status != 200:
                 return url, None, f'HTTP {r.status}'
@@ -358,7 +420,7 @@ def main():
     # happens. The report's integrity gate asks for 0 *unexplained* changes,
     # which is only answerable if the explained ones were tallied at the time.
     changes = {'url-relocalisation': 0, 'sri-strip': 0, 'href-inert': 0,
-               'href-wired': 0, 'form-inert': 0, 'stamp': 0}
+               'href-wired': 0, 'form-inert': 0, 'stamp': 0, 'tracker-strip': 0}
 
     def rewrite_urls(text, prefix, count=False):
         """Absolute asset URLs -> local path."""
@@ -401,7 +463,7 @@ def main():
                 parts = stripped.split(None, 1)
                 spec, descriptor = parts[0], (parts[1] if len(parts) > 1 else '')
                 if not spec.startswith(SKIP_SCHEMES):
-                    u = truncate_at_extension(urljoin(base, spec.replace('&amp;', '&')))
+                    u = truncate_at_extension(safe_urljoin(base, spec.replace('&amp;', '&')))
                     if u and u in table:
                         spec = f'{prefix}{table[u]}'
                         changed = True
@@ -446,7 +508,8 @@ def main():
         pre, href, post = m.group(1), m.group(2), m.group(3)
         if href.startswith('#') or href.startswith(f'{a.cdn}/'):
             return m.group(0)
-        slug = urlmap.get(urljoin(origin + '/', href).split('#')[0].rstrip('/'))
+        joined = safe_urljoin(origin + '/', href)
+        slug = urlmap.get(joined.split('#')[0].rstrip('/')) if joined else None
         if slug:
             mapped += 1
             wired_slugs.add(slug)
@@ -478,6 +541,17 @@ def main():
         h, n1 = re.subn(r'\s+(integrity|crossorigin)=(["\'])[^"\']*\2', '', h)
         h, n2 = re.subn(r'\s+(integrity|crossorigin)(?=[\s>])', '', h)
         changes['sri-strip'] += n1 + n2
+        # A live off-origin request beat every URL-attribute rewrite above,
+        # because it is built by string concatenation at runtime, not present
+        # as a literal URL anywhere in the markup a regex can match.
+        h, n5 = GTM_INLINE.subn(
+            '<!-- tracker-strip: inline Google Tag Manager bootstrap removed '
+            '(built its beacon URL by string concatenation, invisible to '
+            'attribute-level rewriting) -->', h)
+        h, n6 = GTM_NOSCRIPT.subn(
+            '<!-- tracker-strip: GTM no-JS iframe fallback removed -->', h)
+        h, n7 = MIXPANEL_TOKEN.subn(r'\1\2', h)
+        changes['tracker-strip'] += n5 + n6 + n7
         h = re.sub(r'(<a\b[^>]*?href=")([^"]*)(")', relink, h)
         h, n3 = re.subn(r'(<form\b[^>]*?action=")[^"]*(")', r'\1#inert\2', h)
         changes['form-inert'] += n3

@@ -5,7 +5,7 @@ import json, os, shutil, socket, subprocess, sys, tempfile, threading, time
 import pathlib as _pl
 SCRIPTS = str(_pl.Path(__file__).resolve().parent.parent)
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlsplit, parse_qs
+from urllib.parse import urlsplit, parse_qs, unquote
 
 BUILD = os.path.join(SCRIPTS, 'build.py')
 SERVE = os.path.join(SCRIPTS, 'serve.py')
@@ -15,7 +15,10 @@ class Origin(BaseHTTPRequestHandler):
     def log_message(self, *a): pass
 
     def do_GET(self):
-        u = urlsplit(self.path); q = parse_qs(u.query)
+        # A real origin decodes the request line's percent-encoding before
+        # routing to a file — matching the raw path here would silently 404
+        # every request build.py correctly encoded via fetch_safe().
+        u = urlsplit(unquote(self.path)); q = parse_qs(u.query)
         accept = self.headers.get('Accept', '')
 
         def send(body, ctype='application/octet-stream', status=200, vary=False):
@@ -35,7 +38,14 @@ class Origin(BaseHTTPRequestHandler):
                          f"const b = new URL('rel/x', '{ORIGIN}/base/');\n").encode(),
                         'text/javascript')
         if u.path == '/chunk.mjs':
-            return send(f"const img = '{ORIGIN}/deep.png';\n".encode(), 'text/javascript')
+            # A template-literal interpolation sitting right next to a real
+            # import — the shape that crashed build.py on a live minified
+            # bundle: `${n.value}` matches REL_SPEC's backtick-quoted capture
+            # (a legal quote character for real dynamic imports) but is not a
+            # URL, and urljoin's bracket-host parser raised ValueError on it,
+            # taking the whole mirror down mid-crawl.
+            return send((f"import(`//${{n.value}}/x.js`);\n"
+                        f"const img = '{ORIGIN}/deep.png';\n").encode(), 'text/javascript')
         if u.path == '/deep.png':
             return send(b'DEEPPNG', 'image/png')
         if u.path == '/data-chunk-abc.json':
@@ -59,6 +69,11 @@ class Origin(BaseHTTPRequestHandler):
             return send(b'SINGLEQUOTED', 'image/png')
         if u.path == '/v/home/images/single_2x.png':
             return send(b'SINGLEQUOTED2X', 'image/png')
+        # A CMS that names uploads after their alt text ships a raw space in
+        # the URL. urlopen raised InvalidURL on this before any request went
+        # out, dropping the asset with no retry possible.
+        if u.path == '/imaginary-v2/images/abc-United States.svg':
+            return send(b'<svg/>', 'image/svg+xml')
         self.send_error(404)
 
 def free_port():
@@ -87,6 +102,15 @@ PAGE = f'''<!doctype html><html><head>
   <source srcset='/v/home/images/single.png, /v/home/images/single_2x.png 2x' media="(max-width:500px)">
   <img src="/v/home/images/photo_large.jpg" alt="single-quoted">
 </picture>
+<img src="{ORIGIN}/imaginary-v2/images/abc-United States.svg" alt="unencoded space">
+<script type="text/javascript">window.dataLayer = window.dataLayer || [];
+(function(w,d,s,l,i){{w[l]=w[l]||[];w[l].push({{'gtm.start':
+new Date().getTime(),event:'gtm.js'}});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://sst.example.com/wisetag?id='+i+dl;f.parentNode.insertBefore(j,f);
+}})(window,document,'script','dataLayer','GTM-TEST123');</script>
+<noscript><iframe title="gtm-iframe" src="https://sst.example.com/ns.html?id=GTM-TEST123" height="0" width="0" style="display:none"></iframe></noscript>
+<script id="__NEXT_DATA__" type="application/json">{{"runtimeConfig":{{"mixpanel":{{"record_sessions_percent":1,"token":"e605c449bdf99389fa3ba674d4f5d919"}},"APP_TOKEN":"dad99d7d8e52c2c8aaf9fda788d8acdc"}}}}</script>
 <a href="/about">About</a>
 <a href="https://elsewhere.example/x">Off-site</a>
 <form action="/subscribe"></form>
@@ -190,10 +214,37 @@ check('relative dynamic import followed to chunk.mjs',
       any(f.startswith('chunk') for f in cdn), str(cdn))
 check('fixed-point: asset referenced only inside chunk.mjs was mirrored',
       any(f.startswith('deep') for f in cdn), str(cdn))
+# The check above already proves it implicitly (build.py would have crashed
+# and this whole test file would have aborted at the subprocess.run() call
+# above before reaching here), but name the regression explicitly: a
+# template-literal interpolation sitting right next to that real import must
+# not take the harvest pass down with it.
+check('a malformed template-literal spec next to a real import does not '
+      'crash the build — the build ran to completion at all', True)
 check('CMS -chunk-/-indexes- sibling derived',
       any('indexes' in f for f in cdn), str(cdn))
 check('HTML body served as .png was rejected, not written',
       not any(f.startswith('broken') for f in cdn), str(cdn))
+check('a URL with a raw unencoded space is fetched, not dropped',
+      any(f.startswith('abc-United') for f in cdn), str(cdn))
+
+# A tag manager builds its beacon URL by string concatenation at RUNTIME, so it
+# is a literal URL nowhere in the markup — invisible to every attribute/url()
+# rewrite above, and the one live off-origin request that survived a mirror
+# with 0 static origin refs and 0 asset failures.
+check('inline GTM bootstrap script is stripped, not left live',
+      'GTM-TEST123' not in page and 'sst.example.com' not in page, page)
+check('the no-JS iframe fallback for the same tag is also stripped',
+      'gtm-iframe' not in page, page)
+check('a bundled analytics SDK token is neutered so it cannot beacon out',
+      'e605c449bdf99389fa3ba674d4f5d919' not in page, page)
+check('an unrelated token in the same JSON blob is left alone',
+      'dad99d7d8e52c2c8aaf9fda788d8acdc' in page, page)
+mixpanel_obj = re.search(r'"mixpanel":\{[^}]*\}', page)
+check('the JSON blob is still syntactically valid after the strip',
+      mixpanel_obj and json.loads('{' + mixpanel_obj.group(0) + '}'), page)
+check('an unrelated tag immediately after the GTM script is untouched',
+      'href="about.html"' in page, page)
 
 # ---------------- a bare invocation in the wrong directory ----------------
 # build.py's docstring documents `python3 build.py` with no arguments, so a
@@ -220,6 +271,9 @@ check('form neutering counted', man['markup_changes']['form-inert'] == 1)
 check('the do-not-publish stamp counted once per page',
       man['markup_changes']['stamp'] == 2, man['markup_changes'])
 check('url relocalisation counted', man['markup_changes']['url-relocalisation'] > 0)
+check('the tracker strip (GTM script + noscript iframe + SDK token) is '
+      'classified, not silent',
+      man['markup_changes']['tracker-strip'] == 3, man['markup_changes'])
 check('0 missing link targets on a mirror whose links all resolve',
       man['links']['missing_targets'] == 0, man['links'])
 check('0 bare # hrefs recorded', man['links']['bare_hash_hrefs'] == 0)
