@@ -62,6 +62,44 @@ ATTR_URL = re.compile(r"""((?:src|href|poster|data-src)\s*=\s*)(["'])([^"']+)(\2
 SRCSET_ATTR = re.compile(r'\bsrcset\s*=\s*(["\'])([^"\']+)\1', re.I)
 REL_PATTERNS = (REL_SPEC, CSS_URL, ATTR_URL)
 SKIP_SCHEMES = ('data:', 'blob:', '#', 'mailto:', 'tel:', 'javascript:', 'http://', 'https://', '//')
+IMPORTMAP_RE = re.compile(r'<script[^>]*type=["\']importmap["\'][^>]*>(.*?)</script>', re.S | re.I)
+
+
+def parse_importmap(html):
+    """The page's own <script type="importmap"> imports table, or {} if absent.
+
+    A bare or prefixed specifier ('three', 'three/addons/x.js') is legal only
+    through this map. Resolving it with urljoin() against the page's own URL —
+    correct for every other relative specifier — instead treats a jsdelivr-
+    hosted Three.js addon as a path on the site being mirrored, and the import
+    404s the instant the mirror runs standalone with no live origin behind it.
+    Seen on ciaoenergy.com: 14 loader/postprocessing imports missed this way,
+    breaking the WebGL hero entirely with no console hint beyond a blank canvas.
+    """
+    m = IMPORTMAP_RE.search(html)
+    if not m:
+        return {}
+    try:
+        return json.loads(m.group(1)).get('imports', {})
+    except (json.JSONDecodeError, AttributeError):
+        return {}
+
+
+def resolve_spec(spec, base, importmap):
+    """A specifier's real URL: import map first, else relative to base.
+
+    Exact match, then the longest prefix key ending in '/', per the import-map
+    spec's own resolution algorithm — 'three/addons/' must win over a shorter
+    prefix if the map ever has both.
+    """
+    if importmap:
+        if spec in importmap:
+            return importmap[spec]
+        for prefix in sorted((p for p in importmap if p.endswith('/')),
+                              key=len, reverse=True):
+            if spec.startswith(prefix):
+                return importmap[prefix] + spec[len(prefix):]
+    return urljoin(base, spec)
 
 
 def truncate_at_extension(url):
@@ -107,8 +145,9 @@ def local_name(url, claimed=None):
     return name
 
 
-def harvest(text, base):
+def harvest(text, base, importmap=None):
     """Every asset URL in a blob, absolute and relative, resolved against base."""
+    importmap = importmap or {}
     found = set()
     for raw in URL_ANY.findall(text.replace('&amp;', '&')):
         u = truncate_at_extension(raw)
@@ -119,7 +158,7 @@ def harvest(text, base):
             rel = m.group(3).strip().replace('&amp;', '&')
             if not rel or rel.startswith(SKIP_SCHEMES[:6]):
                 continue
-            u = truncate_at_extension(urljoin(base, rel))
+            u = truncate_at_extension(resolve_spec(rel, base, importmap))
             if u:
                 found.add(u)
     # Both quote styles, matching SRCSET_ATTR above. Double-quote-only here meant
@@ -265,8 +304,10 @@ def main():
     resolved, failed = {}, {}
     names, claimed = {}, {}      # url -> local name, and name -> first url to claim it
     frontier = set()
+    importmaps = {}
     for slug, html in raw.items():
-        frontier |= harvest(html, page_url[slug])
+        importmaps[slug] = parse_importmap(html)
+        frontier |= harvest(html, page_url[slug], importmaps[slug])
     frontier |= cms_siblings(frontier)
 
     for rnd in range(a.max_rounds):
@@ -333,13 +374,14 @@ def main():
                 text = text.replace(amp, f'{prefix}{table[url]}')
         return text
 
-    def rewrite_relative(text, base, prefix, count=False):
+    def rewrite_relative(text, base, prefix, count=False, importmap=None):
         """Relative specifiers -> the same local path, resolved against base."""
+        importmap = importmap or {}
         def one(m):
             spec = m.group(3).strip()
             if not spec or spec.startswith(SKIP_SCHEMES):
                 return m.group(0)
-            u = truncate_at_extension(urljoin(base, spec.replace('&amp;', '&')))
+            u = truncate_at_extension(resolve_spec(spec.replace('&amp;', '&'), base, importmap))
             if u and u in table:
                 if count:
                     changes['url-relocalisation'] += 1
@@ -420,8 +462,16 @@ def main():
     host = urlsplit(origin).netloc
     bare_hash = 0
     for slug, html in raw.items():
-        h = rewrite_urls(html, f'{a.cdn}/', count=True)
-        h = rewrite_relative(h, page_url[slug], f'{a.cdn}/', count=True)
+        # Root-absolute (/cdn/x), not document-relative (cdn/x): this text also
+        # contains inline <script type="module"> bodies, and an ES module
+        # specifier that isn't "/", "./", "../"-prefixed (or import-mapped) is a
+        # hard TypeError that kills the *entire* module before a single line of
+        # it runs — Three.js, Lenis, and every canvas along with it. A plain
+        # DOM src/href/url() tolerates either form; only /cdn/ works for both,
+        # exactly as the asset-level rewrite pass below already does it.
+        h = rewrite_urls(html, f'/{a.cdn}/', count=True)
+        h = rewrite_relative(h, page_url[slug], f'/{a.cdn}/', count=True,
+                              importmap=importmaps[slug])
         # SRI: rewriting a file's bytes means its hash no longer matches, and the
         # browser drops the entire resource with no console error. Symptom is a
         # page rendering in Times with document.fonts.size === 0.

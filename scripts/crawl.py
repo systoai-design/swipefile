@@ -247,12 +247,15 @@ def main():
                'pages': [{k: v for k, v in p.items() if k != 'html'} for p in pages],
                'skipped': skipped, 'urlmap': seen,
                'sitemap_only': sitemap_only, 'crawl_only': crawl_only},
-              open(os.path.join(a.out, 'crawl-manifest.json'), 'w'), indent=1)
+              open(os.path.join(a.out, 'crawl-manifest.json'), 'w', encoding='utf-8'), indent=1)
 
-    # write raw html for the rewrite pass
+    # write raw html for the rewrite pass. encoding='utf-8' is not optional here:
+    # this is a live page's actual bytes, and the crawl exists to run against
+    # real sites — the moment one uses a curly quote, an accented letter, or an
+    # arrow, a bare open(..., 'w') on Windows falls back to cp1252 and throws.
     os.makedirs(os.path.join(a.out, '_raw'), exist_ok=True)
     for p in pages:
-        open(os.path.join(a.out, '_raw', p['slug']), 'w').write(p['html'])
+        open(os.path.join(a.out, '_raw', p['slug']), 'w', encoding='utf-8').write(p['html'])
 
     reasons = {}
     for why in skipped.values():
