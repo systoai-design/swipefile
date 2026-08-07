@@ -273,7 +273,12 @@ def audit(bundle, corpus, fails, warns, notes):
     # and a fresh install where that name resolves to nothing is merely stale.
     if corpus:
         hits = []
-        pattern = re.compile('|'.join(re.escape(n) for n in corpus), re.I)
+        # Bounded, not bare substrings: "apple" otherwise matches AppleWebKit in
+        # build.py's user-agent string, and a warning that cries wolf about its
+        # own source code is one nobody reads.
+        pattern = re.compile('(?<![A-Za-z0-9])(?:'
+                             + '|'.join(re.escape(n) for n in corpus)
+                             + ')(?![A-Za-z0-9])', re.I)
         for rel in present:
             with open(os.path.join(bundle, rel), encoding='utf-8', errors='replace') as f:
                 for i, line in enumerate(f, 1):

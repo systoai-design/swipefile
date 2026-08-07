@@ -54,7 +54,7 @@ python scripts/capture.py https://example.com --out ./capture --selector "main"
 ```
 
 Requires `pip install playwright && playwright install chromium`. Pass
-`--width`/`--height` and re-run per breakpoint if you need responsive coverage.
+`--breakpoints`/`--height` and re-run per breakpoint if you need responsive coverage.
 
 ## 3. Claude in Chrome or another browser MCP
 

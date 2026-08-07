@@ -122,7 +122,12 @@ def harvest(text, base):
             u = truncate_at_extension(urljoin(base, rel))
             if u:
                 found.add(u)
-    for s in re.findall(r'srcset\s*=\s*"([^"]+)"', text, re.I):
+    # Both quote styles, matching SRCSET_ATTR above. Double-quote-only here meant
+    # a single-quoted srcset was never FETCHED, so the rewriter had nothing to
+    # point at and the origin URL survived — the blank-box failure again, with a
+    # build log reading `failed: 0`.
+    for s in re.findall(r'srcset\s*=\s*(?:"([^"]+)"|\'([^\']+)\')', text, re.I):
+        s = s[0] or s[1]
         for cand in s.split(','):
             cand = cand.strip().split()[0] if cand.strip() else ''
             if cand:
@@ -199,6 +204,11 @@ def main():
                     help='asset discovery rounds; text assets reference more assets')
     a = ap.parse_args()
 
+    if not os.path.exists('crawl-manifest.json'):
+        raise SystemExit(
+            'no crawl-manifest.json in this directory.\n'
+            'build.py rewrites what crawl.py fetched, so run it from the same place:\n'
+            '  python3 crawl.py <url> && python3 build.py')
     man = json.load(open('crawl-manifest.json'))
     pages = man['pages']
     urlmap = {k.rstrip('/'): v for k, v in man['urlmap'].items()}
@@ -209,6 +219,11 @@ def main():
     if not origin:
         raise SystemExit('no origin: pass --origin')
 
+    missing = [p['slug'] for p in pages if not os.path.exists(f"_raw/{p['slug']}")]
+    if missing:
+        raise SystemExit(f'crawl-manifest.json lists {len(pages)} pages but _raw/ is '
+                         f'missing {len(missing)} of them ({", ".join(missing[:4])}). '
+                         f'Re-run crawl.py — a partial _raw/ builds a partial site.')
     raw = {p['slug']: open(f"_raw/{p['slug']}", encoding='utf-8', errors='replace').read()
            for p in pages}
     page_url = {p['slug']: p['url'] for p in pages}

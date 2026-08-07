@@ -26,6 +26,7 @@ SUITES = [
     ('crawl', 'test_crawl.py', 'boundaries, sitemap coverage, skip reasons'),
     ('capture', 'test_capture_scroll.py', 'scroll reaches the page bottom'),
     ('library', 'test_library.py', 'entry contract, name collisions, INDEX/entry fidelity agreement'),
+    ('spec', 'test_spec.py', 'name resolution: aliases resolve, substrings do not'),
     ('motion', 'test_motion.py', 'per-animation spec: trigger, from/to, stagger, load-time'),
     ('font', 'test_font.py', 'canvas A/B tells a real face from a silent fallback'),
     ('copy', 'test_copy.py', 'AI-writing tells, SEO essentials, JSON-LD structured data'),

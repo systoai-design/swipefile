@@ -142,7 +142,7 @@ kit for my <subject> from what you've learned".
 ## Design from a named reference
 
 Every library entry is **callable by name** — "build a website for my brand,
-reference: **Lando Norris**" needs no URL. Resolution:
+reference: **<the name in the index>**" needs no URL. Resolution:
 
 1. Look the name up in `library/INDEX.md`'s *Call it* column — match
    case-insensitively against the name, the domain, or any alias listed in the
@@ -169,10 +169,11 @@ reference: **Lando Norris**" needs no URL. Resolution:
    Read the fidelity off `INDEX.md` at Step 0, before planning — it is in the
    motion column, so choosing a donor and knowing whether it can carry motion is
    one lookup, not a file read per candidate.
-2. Not found → say what the library *does* hold ("I have YouTube, Phenomenon,
-   Lando Norris, CreateStudio, OSA") and ask for a URL — a fresh capture both
-   serves the job and adds the name for next time.
-3. Multiple names — "hero like Lando Norris, cards like Phenomenon" — is a
+2. Not found → say what the library *does* hold, reading the names straight off
+   `library/INDEX.md`'s *Call it* column rather than from memory, and ask for a
+   URL — a fresh capture both serves the job and adds the name for next time.
+   On a blank library say that plainly; it is the documented first-run state.
+3. Multiple names — "hero like <one entry>, cards like <another>" — is a
    legitimate composition: take each named system for the scope it was named
    for, and say in the plan which entry governs which region.
 
@@ -379,7 +380,7 @@ offsets — and confirm it before building.
 not start from your own recollection of the page.**
 
 ```bash
-python3 motion-spec.py --name Phenomenon        # library, if the entry is spec-grade
+python3 motion-spec.py --name <Name>            # library, if the entry is spec-grade
 python3 motion-spec.py --url https://ref.com    # otherwise capture one
 python3 motion-spec.py --list                   # what is buildable right now
 ```

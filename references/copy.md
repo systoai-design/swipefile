@@ -75,23 +75,36 @@ the words exist means rewriting the words, and rewriting always keeps more of th
 original shape than starting from the guidance would have. Same rule as every
 other skill in the routing table.
 
-What the gate actually watches, with the budget each category is allowed. A
-category fails only when occurrences **exceed** its budget — the budgets are
-there because one em dash is punctuation and one "crucial" is a word, while six
-of one and fourteen of the other is a tell:
+What the gate actually watches. A category fails only when occurrences
+**exceed** its budget, and **the budget is a RATE per 1000 words plus a hard
+floor — never an absolute count**:
 
-| humanizer category | Budget | Fails at |
-|---|---|---|
-| 7 AI vocabulary (delve, leverage, seamless, robust, curated, myriad…) | 6 | 7+ |
-| 4 promotional language (world-class, unparalleled, best-in-class…) | 2 | 3+ |
-| 5 vague attribution (experts say, studies show, it is believed) | 0 | 1+ |
-| 3 superficial -ing analysis (", highlighting…", ", underscoring…") | 2 | 3+ |
-| 9 negative parallelism (not just, isn't merely, more than simply) | 1 | 2+ |
-| 1 inflated significance (stands as a testament, marks a turning point) | 1 | 2+ |
-| 12 false range ("from X to Y, ") | 3 | 4+ |
-| 18 emoji | 1 | 2+ |
-| 19 curly quotes | 40 | 41+ |
-| 14 em-dash density | `max(2, words/150)` | above that |
+```
+budget = max(floor, round(rate * words / 1000))
+```
+
+That is the whole point of the design. Two superlatives in a 69-word paragraph
+is egregious; two across a 2000-word page is ordinary English. An absolute
+budget gets one of those wrong, and the one it gets wrong is the short punchy
+marketing copy this gate exists for. The columns below show the rate and floor
+that the code actually holds, plus what they work out to at two page lengths —
+read the rate, not the example.
+
+| humanizer category | Rate /1000 words | Hard floor | Budget @500w | Budget @2000w |
+|---|---|---|---|---|
+| 7 AI vocabulary | 6 | 1 | 3 | 12 |
+| 4 promotional language | 2 | 0 | 1 | 4 |
+| 5 vague attribution | 0 | 0 | 0 | 0 |
+| 3 superficial -ing analysis | 2 | 0 | 1 | 4 |
+| 9 negative parallelism | 2 | 0 | 1 | 4 |
+| 1 inflated significance | 1 | 0 | 0 | 2 |
+| 12 false range | 3 | 1 | 2 | 6 |
+| 18 emoji | 0 | 0 | 0 | 0 |
+| 19 curly quotes | 40 | 10 | 20 | 80 |
+| 33 rhetorical opener | 1 | 0 | 0 | 2 |
+| 32 aphorism formula | 1 | 0 | 0 | 2 |
+| 14 em-dash density | — | — | `max(2, words/150)` | `max(2, words/150)` |
+| 31 staccato drama | — | — | run of 4+ short sentences | run of 4+ short sentences |
 
 The prose pass runs on **visible text only**. HTML comments, `<script>`,
 `<style>`, `<svg>` and `<noscript>` are stripped first, because a build's own

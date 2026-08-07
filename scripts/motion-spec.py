@@ -43,21 +43,60 @@ def entries():
         n = re.search(r'\*\*Callable as:\s*([^*]+)\*\*', text)
         if n:
             names |= {p.strip().lower() for p in re.split(r'[,/]', n.group(1)) if p.strip()}
+        # `[^*]+` stops at the closing `**`, so the `(aliases: …)` parenthetical
+        # every entry advertises was never read: `--name yt` missed a file that
+        # literally records `yt`. Twelve aliases across nine entries were dead.
+        al = re.search(r'\*\*Callable as:[^*]+\*\*\s*\(aliases:([^)]*)\)', text)
+        if al:
+            names |= {p.strip().lower().strip('"\'') for p in al.group(1).split(',')
+                      if p.strip()}
         for name in names:
             out[name] = (path, fidelity, fn[:-3])
     return out
 
 
+def resolve(reg, name):
+    """Exact name, then an unambiguous PREFIX. Never a bare substring.
+
+    The old fallback was `key in k` with a `break`, which answered `--name
+    studio` with createstudio's spec-grade entry at exit 0 and, when two entries
+    matched, returned whichever happened to sort first. A confident wrong answer
+    is worse here than no answer: the caller builds a page's motion from another
+    site's spec and nothing downstream can tell.
+
+    Returns (hit, ambiguous) — exactly one of which is meaningful.
+    """
+    key = name.strip().lower()
+    if key in reg:
+        return reg[key], None
+    flat = key.replace(' ', '').replace('.', '')
+    if len(flat) < 3:
+        return None, None
+    cands = {}
+    for k, v in reg.items():
+        kf = k.replace(' ', '').replace('.', '')
+        if kf.startswith(flat) or flat.startswith(kf):
+            cands.setdefault(v[2], v)
+    if len(cands) == 1:
+        return next(iter(cands.values())), None
+    return None, sorted(cands) or None
+
+
 def from_library(name):
     reg = entries()
-    key = name.strip().lower()
-    hit = reg.get(key)
-    if not hit:
-        # tolerate 'lando norris' vs 'landonorris.com'
-        for k, v in reg.items():
-            if key.replace(' ', '') in k.replace(' ', '').replace('.', ''):
-                hit = v
-                break
+    if not reg:
+        print('THE LIBRARY IS EMPTY — nothing to resolve a name against.', file=sys.stderr)
+        print('That is the documented first-run state, not a fault. Capture the site:',
+              file=sys.stderr)
+        print('  python3 motion-spec.py --url <the site url>', file=sys.stderr)
+        return 2
+    hit, ambiguous = resolve(reg, name)
+    if ambiguous:
+        print(f'AMBIGUOUS: "{name}" matches {len(ambiguous)} entries — '
+              + ', '.join(ambiguous), file=sys.stderr)
+        print('Name one of them exactly. Guessing here would build one site\'s motion '
+              'from another\'s spec.', file=sys.stderr)
+        return 2
     if not hit:
         known = sorted({v[2] for v in reg.values()})
         print(f'NO SUCH ENTRY: "{name}"', file=sys.stderr)
@@ -139,6 +178,13 @@ def main():
         seen = {}
         for path, fid, slug in entries().values():
             seen[slug] = fid
+        if not seen:
+            # Printing nothing reads as "the tool is broken", not "you have not
+            # captured anything yet" — and a fresh install is always here.
+            print('The library is empty. That is the documented first-run state:')
+            print('  every capture writes library/<domain>.md and a row in INDEX.md.')
+            print('  Start one with:  python3 motion-spec.py --url <the site url>')
+            return 0
         for slug, fid in sorted(seen.items(), key=lambda kv: (kv[1] != 'spec', kv[0])):
             mark = 'buildable' if fid == BUILDABLE else 'NOT buildable'
             print(f'  {fid:<16} {mark:<14} {slug}')

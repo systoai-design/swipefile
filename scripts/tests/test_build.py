@@ -55,6 +55,10 @@ class Origin(BaseHTTPRequestHandler):
             return send(b'PHOTOSMALL2X', 'image/png')
         if u.path == '/v/home/images/photo_large.jpg':
             return send(b'PHOTOLARGE', 'image/jpeg')
+        if u.path == '/v/home/images/single.png':
+            return send(b'SINGLEQUOTED', 'image/png')
+        if u.path == '/v/home/images/single_2x.png':
+            return send(b'SINGLEQUOTED2X', 'image/png')
         self.send_error(404)
 
 def free_port():
@@ -78,6 +82,10 @@ PAGE = f'''<!doctype html><html><head>
 <picture>
   <source srcset="/v/home/images/photo_small.png, /v/home/images/photo_small_2x.png 2x" media="(max-width:734px)">
   <img src="/v/home/images/photo_large.jpg" alt="students">
+</picture>
+<picture>
+  <source srcset='/v/home/images/single.png, /v/home/images/single_2x.png 2x' media="(max-width:500px)">
+  <img src="/v/home/images/photo_large.jpg" alt="single-quoted">
 </picture>
 <a href="/about">About</a>
 <a href="https://elsewhere.example/x">Off-site</a>
@@ -139,6 +147,17 @@ check('srcset descriptor (2x) preserved after rewrite',
 check('fallback <img src> for the picture also rewritten',
       'src="cdn/photo_large' in page, page)
 
+# The harvester was double-quote-only while SRCSET_ATTR accepted both, so a
+# single-quoted srcset was never FETCHED — the rewriter then had nothing local to
+# point at and the origin URL survived, with the build log reading `failed: 0`.
+check('single-quoted srcset candidates are fetched',
+      any(f.startswith('single') for f in cdn), str(cdn))
+check('single-quoted srcset is rewritten off the origin',
+      '/v/home/images/single.png' not in page and 'cdn/single' in page,
+      page[page.find('single'):page.find('single') + 200])
+check('its 2x descriptor survives the rewrite',
+      re.search(r"srcset=['\"][^'\"]*cdn/single_2x[^'\"]*2x", page) is not None, page)
+
 check('css url() truncated at extension, not swallowed by --next-prop',
       any(f.startswith('theme') for f in cdn) and '--next-prop:red' in page)
 check('relative url() inside the stylesheet followed (face.woff2)',
@@ -157,6 +176,18 @@ check('CMS -chunk-/-indexes- sibling derived',
       any('indexes' in f for f in cdn), str(cdn))
 check('HTML body served as .png was rejected, not written',
       not any(f.startswith('broken') for f in cdn), str(cdn))
+
+# ---------------- a bare invocation in the wrong directory ----------------
+# build.py's docstring documents `python3 build.py` with no arguments, so a
+# zero-argument run looks supported; it used to raise FileNotFoundError with a
+# full stack trace. Every sibling entry point exits cleanly with guidance.
+bare = tempfile.mkdtemp(prefix='build-bare-')
+rb = subprocess.run([sys.executable, BUILD], cwd=bare, capture_output=True, text=True)
+check('a bare run with no crawl-manifest.json does not traceback',
+      'Traceback' not in rb.stderr, rb.stderr[-300:])
+check('it names the file it wanted and the command that produces it',
+      'crawl-manifest.json' in rb.stderr and 'crawl.py' in rb.stderr, rb.stderr[-300:])
+shutil.rmtree(bare, ignore_errors=True)
 
 # ---------------- the build's own evidence, for report.py ----------------
 # Counted during the rewrite rather than reconstructed afterwards: a number

@@ -3,7 +3,8 @@
 One line per site captured. Newest last. Read this before a capture; append to it
 after. Full entries live beside this file as `<domain>.md`.
 
-**Every entry is callable by name.** "Build my site, reference: Lando Norris"
+**Every entry is callable by name.** "Build my site, reference: <a name from the
+*Call it* column below>"
 resolves through the *Call it* column below — match case-insensitively against
 the name, the domain, or any alias in the entry — then runs Adapt from the
 entry's measured system (see "Design from a named reference" in SKILL.md).
