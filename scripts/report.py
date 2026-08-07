@@ -145,16 +145,26 @@ def font_gate(fonts):
     return ('pass' if not bad else 'fail'), bad
 
 
-def scope_block(crawl, measured, single_page):
-    """Built / excluded / sitemap set-difference, from the crawler's own manifest."""
+def scope_block(crawl, build, measured, single_page):
+    """Built / excluded / sitemap set-difference, from the crawler's own manifest.
+
+    'built' means pages actually WRITTEN TO DISK, which is build.py's page
+    list, not crawl.py's raw queue — a query-string variant of an already-
+    captured URL (?region=PH vs ?region=SG on the same fee-history page) is
+    one real page, but crawl.py records it as a separate manifest entry before
+    build.py's slug-based dedup collapses it. Measured live: 174 crawl entries
+    collapsed to 142 real files, and the report's own scope line claimed 174
+    built when 32 of those were never distinct files at all.
+    """
     if crawl:
         skipped = crawl.get('skipped') or {}
         reasons = {}
         for why in skipped.values():
             reasons[why] = reasons.get(why, 0) + 1
         sitemap_only = list(crawl.get('sitemap_only') or [])
-        return {'built': len(crawl.get('pages') or []),
-                'sitemap_total': len(crawl.get('pages') or []) + len(sitemap_only),
+        built = len(build.get('pages') or []) if build else len(crawl.get('pages') or [])
+        return {'built': built,
+                'sitemap_total': built + len(sitemap_only),
                 'sitemap_only': sitemap_only,
                 'crawl_only': list(crawl.get('crawl_only') or []),
                 'unlisted': [u for u in sitemap_only if u not in skipped],
@@ -194,7 +204,7 @@ def assemble(a, crawl, build, copy, motion, measured):
     no_build = 'not measured — no build manifest supplied'
     return {
         'site': a.site, 'date': a.date, 'mode': a.mode, 'path': a.path,
-        'scope': scope_block(crawl, measured, a.single_page),
+        'scope': scope_block(crawl, build, measured, a.single_page),
         'fidelity': {
             'text_pct': m('fidelity.text_pct'),
             'text_chars': m('fidelity.text_chars'),
