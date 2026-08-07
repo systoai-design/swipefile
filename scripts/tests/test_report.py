@@ -383,6 +383,11 @@ code, out, data = run(setpath(drift, 'honesty.unresolved', ['hero randomises per
                       files=GATE_INPUTS)
 check('the same delta passes once the unresolved row explains it',
       status_of(data, 'geometry') == 'pass', status_of(data, 'geometry'))
+geo_detail = next(g['detail'] for g in data['gates']['detail'] if 'geometry' in g['gate'])
+check('a PASSING geometry gate does not claim the unresolved row is empty '
+      '(it is the reason the gate passed)',
+      'is empty' not in geo_detail and 'explained in honesty.unresolved' in geo_detail,
+      geo_detail)
 
 probs = setpath(BUILD_MANIFEST, 'assets',
                 {**BUILD_MANIFEST['assets'], 'problems': 5})

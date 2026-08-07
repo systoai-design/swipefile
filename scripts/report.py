@@ -363,9 +363,15 @@ def gates(r):
     else:
         worst = geo.get('worst_delta_px')
         explained = bool(unresolved) and not unmeasured(unresolved)
-        gate('geometry: worst delta zero or explained', worst, worst == 0 or explained,
-             f'worst delta {worst}px and the unresolved row is empty — '
-             f'a delta with no stated cause is not an explained one')
+        if worst == 0:
+            detail = 'worst delta 0px'
+        elif explained:
+            detail = (f'worst delta {worst}px, explained in honesty.unresolved '
+                      f'({len(unresolved)} entr{"y" if len(unresolved) == 1 else "ies"})')
+        else:
+            detail = (f'worst delta {worst}px and honesty.unresolved is empty — '
+                      f'a delta with no stated cause is not an explained one')
+        gate('geometry: worst delta zero or explained', worst, worst == 0 or explained, detail)
 
     problems = dig(r, 'integrity.assets.problems')
     gate('asset integrity problems = 0', problems, problems == 0, f'{problems} problems')
