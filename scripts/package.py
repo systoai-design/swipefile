@@ -211,14 +211,21 @@ def build(out_dir):
 
 def audit(bundle, corpus, fails, warns, notes):
     """Re-check the bundle as if the allowlist could not be trusted."""
+    # Every path collected here ends up either compared against the allowlist
+    # (which is written in forward slashes) or printed straight into a warning
+    # a person reads. os.path.relpath returns native separators, so on Windows
+    # this was silently building backslash paths — allowlist entries never
+    # matched, and CORPUS TRACE lines named a file that didn't look like
+    # anything else in the report. Normalize once, at the source.
+    to_posix = lambda p: os.path.relpath(p, bundle).replace(os.sep, '/')
     present, links = [], []
     for base, dirs, files in os.walk(bundle):
         for d in dirs:
             if os.path.islink(os.path.join(base, d)):
-                links.append(os.path.relpath(os.path.join(base, d), bundle))
+                links.append(to_posix(os.path.join(base, d)))
         for fn in files:
             path = os.path.join(base, fn)
-            rel = os.path.relpath(path, bundle)
+            rel = to_posix(path)
             (links if os.path.islink(path) else present).append(rel)
     present.sort()
 
@@ -293,7 +300,11 @@ def audit(bundle, corpus, fails, warns, notes):
                          f'recipient will not have. Genericise them if the bundle is going '
                          f'to a stranger.')
     for req in REQUIRED_IN_BUNDLE:
-        if req.replace('/', os.sep) not in present:
+        # present is posix-normalized above (to_posix); REQUIRED_IN_BUNDLE's
+        # own literals are already forward-slash, so no conversion is needed
+        # here — converting to os.sep, as this used to, is exactly backwards
+        # now and fails every required-file check on Windows.
+        if req not in present:
             fails.append(f'BUNDLE: {req} is missing. A bundle without it is not a '
                          f'usable skill, however clean the rest of it audits.')
 

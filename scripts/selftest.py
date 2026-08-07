@@ -47,9 +47,20 @@ def main():
         # Do not leave __pycache__ behind: a packaged bundle is a folder someone
         # verifies with `package.py --verify`, and bytecode dropped by this run
         # would have that gate accuse them of shipping a build artifact.
+        # encoding='utf-8' here, plus PYTHONUTF8=1 for the child: this codebase
+        # prints em-dashes throughout, and on Windows the ambient locale
+        # encoding is commonly cp1252, which cannot represent five particular
+        # byte values at all. A suite that happened to relay one of those
+        # bytes crashed the *entire* run with a decode error having nothing to
+        # do with what was being tested. PYTHONUTF8=1 cascades to every
+        # subprocess a suite spawns in turn (build.py, report.py, ...), so
+        # the whole tree writes and reads UTF-8 consistently; errors='replace'
+        # is the last-resort net if something still isn't valid UTF-8.
         r = subprocess.run([sys.executable, os.path.join(TESTS, filename)],
                            capture_output=True, text=True,
-                           env={**os.environ, 'PYTHONDONTWRITEBYTECODE': '1'})
+                           encoding='utf-8', errors='replace',
+                           env={**os.environ, 'PYTHONDONTWRITEBYTECODE': '1',
+                                'PYTHONUTF8': '1'})
         tail = [l for l in r.stdout.splitlines() if l.startswith(('PASS', 'FAIL'))]
         print('\n'.join(tail) or r.stdout[-800:])
         if r.returncode != 0 and r.stderr:

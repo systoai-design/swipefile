@@ -18,7 +18,7 @@ Every rule here was paid for by a measured failure; see library/INDEX.md
 Run after crawl.py:  python3 build.py
 Then serve with:     python3 serve.py --directory site
 """
-import argparse, hashlib, json, os, re, glob
+import argparse, hashlib, json, os, re, glob, shutil, subprocess
 from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import urljoin, urlsplit
 from urllib.request import Request, urlopen
@@ -176,6 +176,38 @@ def grab(url, name, outdir):
     with open(dest, 'wb') as f:
         f.write(data)
     return url, name, None
+
+
+def link_dir(rel_target, link):
+    """Make `link` resolve to `rel_target` (relative to link's parent dir).
+
+    Plain os.symlink is what every other OS wants, but on Windows it raises
+    WinError 1314 unless the user has Developer Mode or admin — which is most
+    users. Fall back to a junction (needs no privilege, but only takes an
+    absolute path) and finally to a real copy, so a study mirror never fails
+    to build just because cdn/ couldn't be linked in.
+    """
+    if os.path.lexists(link):
+        return
+    try:
+        os.symlink(rel_target, link, target_is_directory=True)
+        return
+    except OSError:
+        pass
+    abs_target = os.path.abspath(os.path.join(os.path.dirname(link) or '.', rel_target))
+    if os.name == 'nt':
+        try:
+            # mklink's own success message is emitted in the console's active
+            # code page, which does not always round-trip through the decoder
+            # subprocess picks for text mode — observed as a crash decoding a
+            # message never actually needed. Discard stdio; only the exit
+            # code (via check=True) determines whether the junction was made.
+            subprocess.run(['cmd', '/c', 'mklink', '/J', link, abs_target],
+                            check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            return
+        except (OSError, subprocess.CalledProcessError):
+            pass
+    shutil.copytree(abs_target, link)
 
 
 def classify_failure(why):
@@ -414,8 +446,7 @@ def main():
     # in module bodies. Without this every asset 404s and the mirror looks broken
     # in a way the build log does not show.
     link = os.path.join(a.out, a.cdn)
-    if not os.path.lexists(link):
-        os.symlink(os.path.relpath(a.cdn, a.out), link)
+    link_dir(os.path.relpath(a.cdn, a.out), link)
 
     # ---------- 4. the build's own evidence ----------
     # report.py consumes this. Counted here rather than reconstructed later,

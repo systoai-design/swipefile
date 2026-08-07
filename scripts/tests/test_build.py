@@ -112,10 +112,28 @@ def check(name, cond, detail=''):
     (PASS if cond else FAIL).append(name)
     print(f'{"PASS" if cond else "FAIL"}  {name}{"  — " + detail if detail and not cond else ""}')
 
+def is_link_like(path):
+    """True for a real symlink or, on Windows, the junction build.py's
+    link_dir() falls back to when the process lacks symlink privilege
+    (the common case without Developer Mode/admin). os.path.islink() alone
+    misses junctions — they're a different reparse-point type — so a strict
+    islink check here would fail on exactly the environment this fallback
+    exists for."""
+    if os.path.islink(path):
+        return True
+    if os.name == 'nt':
+        import stat as _stat
+        try:
+            attrs = os.stat(path, follow_symlinks=False).st_file_attributes
+            return bool(attrs & _stat.FILE_ATTRIBUTE_REPARSE_POINT)
+        except (OSError, AttributeError):
+            return False
+    return False
+
 cdn = os.listdir(f'{work}/cdn')
 page = open(f'{work}/site/index.html').read()
 
-check('site/cdn symlink exists', os.path.islink(f'{work}/site/cdn'))
+check('site/cdn is linked, not copied', is_link_like(f'{work}/site/cdn'))
 check('site/cdn resolves to the asset dir',
       os.path.isdir(os.path.realpath(f'{work}/site/cdn')))
 

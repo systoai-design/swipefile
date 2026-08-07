@@ -104,9 +104,15 @@ def warns_of(d):
 
 
 def tree(bundle):
+    # Every check in this file compares against forward-slash literals
+    # ('library/TEMPLATE.md'), but os.path.relpath returns native separators —
+    # backslashes on Windows — so every membership test failed there while the
+    # file was genuinely present. Normalize once, here, rather than at each
+    # call site.
     out = []
     for base, _, files in os.walk(bundle):
-        out += [os.path.relpath(os.path.join(base, f), bundle) for f in files]
+        out += [os.path.relpath(os.path.join(base, f), bundle).replace(os.sep, '/')
+                 for f in files]
     return sorted(out)
 
 
@@ -258,12 +264,23 @@ check('--verify refuses a path the allowlist would never produce',
 
 d13 = skill()
 code, out, data, b13 = run(d13, '--no-selftest')
-os.symlink(os.path.join(d13, 'library'), os.path.join(b13, 'entries'))
-r = subprocess.run([sys.executable, os.path.join(d13, 'scripts', 'package.py'),
-                    '--verify', b13, '--json', '--no-selftest'], capture_output=True, text=True)
-got = json.loads(r.stdout)
-check('a symlinked directory in a bundle is refused, not walked past',
-      r.returncode != 0 and 'is a symlink' in fails_of(got), fails_of(got))
+try:
+    # A real symlink, not a copy or a Windows junction: package.py's own gate
+    # checks os.path.islink(), which a junction does not satisfy (different
+    # reparse-point type), so only an actual symlink exercises this path.
+    os.symlink(os.path.join(d13, 'library'), os.path.join(b13, 'entries'))
+except OSError:
+    # Windows raises WinError 1314 here without Developer Mode or admin. Same
+    # posture as the Chrome-dependent suites: skip cleanly, verify less, don't
+    # fail a machine for lacking a privilege unrelated to what's being tested.
+    print('SKIP  a symlinked directory in a bundle is refused, not walked past'
+          ' — no symlink privilege on this machine')
+else:
+    r = subprocess.run([sys.executable, os.path.join(d13, 'scripts', 'package.py'),
+                        '--verify', b13, '--json', '--no-selftest'], capture_output=True, text=True)
+    got = json.loads(r.stdout)
+    check('a symlinked directory in a bundle is refused, not walked past',
+          r.returncode != 0 and 'is a symlink' in fails_of(got), fails_of(got))
 
 # ---- the corpus scan must read the library files that actually ship
 d14 = skill()
