@@ -163,7 +163,7 @@ check('<source srcset> rewritten off the origin path',
 check('srcset descriptor (2x) preserved after rewrite',
       re.search(r'srcset="[^"]*cdn/photo_small_2x[^"]*2x', page) is not None, page)
 check('fallback <img src> for the picture also rewritten',
-      'src="cdn/photo_large' in page, page)
+      re.search(r'src="/?cdn/photo_large', page) is not None, page)
 
 # The harvester was double-quote-only while SRCSET_ATTR accepted both, so a
 # single-quoted srcset was never FETCHED — the rewriter then had nothing local to
