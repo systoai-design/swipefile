@@ -18,6 +18,10 @@ open(os.path.join(root, 'hero.png'), 'wb').write(
     b'\x00\x00\x00\x20ftypavif' + b'\x00' * 32)
 open(os.path.join(root, 'real.png'), 'wb').write(b'\x89PNG\r\n\x1a\n' + b'\x00' * 32)
 open(os.path.join(root, 'face.woff2'), 'wb').write(b'wOF2' + b'\x00' * 32)
+# a Next.js-style async chunk: build.py mirrors it flat into cdn/, but the
+# page's own webpack runtime requests it at the ORIGINAL absolute site path
+os.makedirs(os.path.join(root, 'cdn'), exist_ok=True)
+open(os.path.join(root, 'cdn', '9627638a-fake.js'), 'w').write('export const x=2;\n')
 
 def free_port():
     s = socket.socket(); s.bind(('127.0.0.1', 0)); p = s.getsockname()[1]; s.close(); return p
@@ -117,6 +121,18 @@ try:
         get(port, '/nope.json?range=0-9'); check('404 for missing file with range', False)
     except urllib.error.HTTPError as e:
         check('404 for missing file with range', e.code == 404)
+
+    st, h, b = get(port, '/static-assets/app/_next/static/chunks/9627638a-fake.js')
+    check('runtime-constructed asset URL recovered via cdn/ basename fallback',
+          st == 200 and b == b'export const x=2;\n', f'status {st}, {len(b)} bytes')
+    check('recovered chunk still gets its real content type',
+          'javascript' in h.get('Content-Type', ''), h.get('Content-Type'))
+
+    try:
+        get(port, '/static-assets/app/_next/static/chunks/does-not-exist.js')
+        check('a truly missing asset still 404s, no false-positive fallback', False)
+    except urllib.error.HTTPError as e:
+        check('a truly missing asset still 404s, no false-positive fallback', e.code == 404)
 
     st, h, b = get(port, '/chunk.json?range=10-19')
     check('no-store set so re-diffs cannot read stale bytes',
