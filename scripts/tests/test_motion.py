@@ -130,8 +130,30 @@ try:
     hero = [a for a in A if a['name'] == 'heroIn']
     check('LOAD-time animation caught (needs --pre injection)', len(hero) >= 1,
           'no heroIn — hooks installed too late')
+    # A native CSS @keyframes animation is visible to BOTH the animationstart
+    # event listener and the WAAPI getAnimations() poll. CSSTransition was
+    # already excluded from the poll as "covered by events"; CSSAnimation was
+    # not, so every @keyframes animation was recorded twice under two
+    # differently-typed dedup keys (a string vs. the animation object) — once
+    # correctly, once with a silently wrong 'linear' easing from the raw
+    # KeyframeEffect option, which is unrelated to the real CSS curve for a
+    # browser-parsed @keyframes rule. Measured live on wise.com: this doubled
+    # the counted weight of every real curve and manufactured phantom
+    # 'linear' entries in the signature-curve tally.
+    check('a @keyframes animation is recorded exactly once, not once per '
+          'capture path', len(hero) == 1, hero)
     check('load animation carries its real duration',
           all(a['duration'] == 900 for a in hero), [a['duration'] for a in hero])
+    # heroIn is a @keyframes animation, reported via the animationstart event
+    # path — a SEPARATE code path from the CSS-transition cards above, and one
+    # that independently re-broke the exact bug splitTop() exists to prevent:
+    # naive split(',')[0] tore this same 4-parameter curve at its first
+    # internal comma, reporting 'cubic-bezier(0.16' on a real capture and
+    # shipping a truncated, invalid signature curve. Nothing above this line
+    # asserts hero's easing at all, which is how it shipped unnoticed.
+    check('load animation easing recovered intact, not comma-split at an '
+          'internal cubic-bezier parameter',
+          all(a['easing'] == EASING for a in hero), [a['easing'] for a in hero])
 
     loop = [a for a in A if a['name'] == 'pulse']
     check('infinite loop captured and marked infinite',
