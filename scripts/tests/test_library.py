@@ -187,11 +187,20 @@ code, out, data = run({'philllia.com.md': entry('Phillia'), 'beta.com.md': entry
                       index([row('Phillia', 'philllia.com'), row('Beta', 'beta.com')]))
 check('a name that is a substring of its OWN slug does not fire', code == 0, fails_of(data))
 
+# motion-spec.py now reads the (aliases: …) parenthetical, so a declared alias
+# is reachable and must NOT warn. The check inverts: it warns only if this file's
+# key set and the resolver's diverge again.
 code, out, data = run({**CLEAN, 'alpha.com.md': entry('Alpha', aliases='al, alph')})
-check('declared aliases the resolver cannot read are warned, not failed', code == 0,
-      fails_of(data))
-check('and the warning blames the regex, not the entry',
-      'the regex is wrong' in warns_of(data), warns_of(data))
+check('declared aliases the resolver can now read raise no warning',
+      code == 0 and 'cannot reach' not in warns_of(data), warns_of(data))
+check('and they are still counted as names for collision purposes',
+      code == 0, fails_of(data))
+collide_alias = {'alpha.com.md': entry('Alpha', aliases='shared'),
+                 'beta.com.md': entry('Beta', aliases='shared')}
+code, out, data = run(collide_alias,
+                      index([row('Alpha', 'alpha.com'), row('Beta', 'beta.com')]))
+check('an alias claimed by two entries is a collision, not a warning',
+      code != 0 and 'claimed by 2' in fails_of(data), fails_of(data))
 
 # ---- INDEX is the other resolver over the same fact
 code, out, data = run(CLEAN, index([row('Alpha', 'alpha.com')]))
@@ -221,10 +230,10 @@ check('a missing capture viewport warns but does not fail',
       code == 0 and 'no capture viewport' in warns_of(data), warns_of(data))
 
 # ---- warnings can never fail the run
-noisy = {'alpha.com.md': entry('Alpha', viewport='', aliases='al'),
+noisy = {'alpha.com.md': entry('Alpha', viewport=''),
          'beta.com.md': entry('Beta', viewport='')}
-code, out, data = run(noisy, index([row('Alpha', 'alpha.com'), row('Beta', 'beta.com')],
-                                   extra='- orphan\n'))
+code, out, data = run(noisy, index([row('Alpha', 'alpha.com', cells=5),
+                                    row('Beta', 'beta.com')], extra='- orphan\n'))
 check('a library with many warnings and no failures still passes',
       code == 0 and len(data['warnings']) >= 4, (code, warns_of(data)))
 

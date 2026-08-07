@@ -230,27 +230,33 @@ def check_names(entries, fails):
 
 
 def check_aliases_resolve(entries, warns):
-    """Declared aliases that the resolver cannot actually read.
+    """Every declared alias must resolve through motion-spec.py's own parser.
 
-    This one indicts the SCRIPT, not the entries: motion-spec.py's
-    `\\*\\*Callable as:\\s*([^*]+)\\*\\*` cannot cross the closing `**`, so the
-    `(aliases: …)` parenthetical every entry advertises is never parsed.
+    This once reported 12 dead aliases across the library and correctly blamed
+    the script rather than the entries: `[^*]+` stopped at the closing `**`, so
+    the `(aliases: …)` parenthetical every entry advertises was never read.
+    motion-spec.py now reads it, so the check inverts — it re-derives the
+    resolver's key set and warns only if an entry declares a name the resolver
+    still cannot reach. A gate that keeps warning after its bug is fixed teaches
+    people to ignore it.
     """
     dead = []
     for fn, text in entries:
+        resolvable = {fn[:-3].lower()}
         m = CALLABLE.search(text)
-        parsed = set()
         if m:
-            parsed = {p.strip().lower() for p in re.split(r'[,/]', m.group(1)) if p.strip()}
-        parsed.add(fn[:-3].lower())
-        for k in sorted(keys_for(fn, text) - parsed):
+            resolvable |= {p.strip().lower() for p in re.split(r'[,/]', m.group(1)) if p.strip()}
+        al = ALIASES.search(text)
+        if al:
+            resolvable |= {p.strip().lower().strip('"\'') for p in al.group(1).split(',')
+                           if p.strip()}
+        for k in sorted(keys_for(fn, text) - resolvable):
             dead.append(f'{k} ({fn})')
     if dead:
-        warns.append(f'NAME: {len(dead)} declared alias(es) do not resolve through '
-                     f'motion-spec.py — its `[^*]+` capture stops at the closing `**` and '
-                     f'never reads the `(aliases: …)` parenthetical: '
-                     f'{", ".join(dead[:8])}{" …" if len(dead) > 8 else ""}. The entries '
-                     f'are right and the regex is wrong; fix it there, not here.')
+        warns.append(f'NAME: {len(dead)} declared name(s) the resolver cannot reach — '
+                     f'{", ".join(dead[:8])}{" …" if len(dead) > 8 else ""}. Compare '
+                     f'keys_for() here against entries() in motion-spec.py; the two '
+                     f'must agree or a name resolves in one and not the other.')
 
 
 def check_index(lib, entries, declared, fails, warns):
