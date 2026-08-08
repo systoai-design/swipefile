@@ -188,6 +188,43 @@ pages being genuine template repetition with no new design information.
    `cubic-bezier(` values and no unexplained excess of `linear` relative to
    what a manual spot-check of the page's actual transitions suggests.
 
+7. **A vendor SDK bundled INLINE (not as a separate file) can crash Next's
+   entire hydrated tree, whiting the page even though the SSR HTML underneath
+   is fine.** Wise loads Mixpanel two ways at once: an external
+   `mixpanel-2-latest.min.js` (stub-able by filename — gotcha 5's treatment
+   already covers this) AND a second, byte-identical copy of the same
+   library's source webpack-bundled straight into 7 of Wise's own 8
+   `_app-*.js` zone chunks, where no filename exists to intercept. That
+   copy's own `get_config` accessor —
+   `MixpanelLib.prototype.get_config=function(prop_name){return
+   this.config[prop_name]}` — throws the instant any tracking call
+   (`track`, `track_pageview`, a group helper) reaches an instance whose
+   async `_init()` hasn't set `this.config` yet, which the library's own
+   snippet-queue pattern (`window.mixpanel = window.mixpanel || []`, queued
+   calls fire once the real script loads regardless of whether `init()`
+   completed) and a consent-gated init a static mirror's missing CMP can
+   never fire both make easy to hit. Confirmed via CDP: the exception is
+   caught **inside React's commit-phase error boundary**, never reaching
+   `window.onerror`/`unhandledrejection` — a global error-suppression shim
+   cannot help here, because React/Next never let it become a genuine
+   uncaught event. Next.js reacts by cancelling the in-flight render
+   ("Cancel rendering route", `E503`, confirmed against the literal string
+   in `main-*.js`) and mounting its own error fallback ("Sorry, looks like
+   we lost this page") over real content, on every page, not just the
+   pricing-widget-bearing homepage. Fixed upstream (`scripts/build.py`'s
+   `MIXPANEL_GET_CONFIG`), matched on the accessor's own unguarded body text
+   — `this.config[<param>]` inside a `get_config` function, two minified
+   param-naming shapes confirmed present — and rewritten to
+   `(this.config||{})[<param>]`: identical result once config is set,
+   `undefined` instead of a throw before it is. Confirmed byte-identical
+   stock `mixpanel-js` library code across every affected zone bundle, not
+   Wise-authored glue, so the fix generalizes to any site bundling the same
+   library version inline. Verify by loading the mirror in a real browser
+   (not just checking the raw HTML) and confirming the console shows no
+   "Cancel rendering route" / no fallback to a 404-shaped screen on first
+   paint — a static HTML/pixel diff alone cannot catch this class of bug,
+   since the SSR markup being diffed is correct; only a live render shows it.
+
 ## Verification achieved
 
 Full REPORT.md/report.json at the build (`swipefile-builds/wise.com-clone/`).
