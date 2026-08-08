@@ -48,6 +48,50 @@ class Origin(BaseHTTPRequestHandler):
                         f"const img = '{ORIGIN}/deep.png';\n").encode(), 'text/javascript')
         if u.path == '/deep.png':
             return send(b'DEEPPNG', 'image/png')
+        if u.path == '/_next/static/chunks/webpack-abc123.js':
+            # Next's webpack chunk map: a ternary chain, one term per async
+            # chunk, giving chunk-id -> hash with no static URL anywhere for
+            # a markup/import scan to find. The referenced chunk lives at the
+            # site's _next/ root + the literal path, NOT at any fixed offset
+            # from this file — same directory here, but a DIFFERENT directory
+            # for the buildManifest case just below, which is the point.
+            return send(b'99887===e?"static/chunks/"+e+"-deadbeef01.js":0', 'text/javascript')
+        if u.path == '/_next/static/chunks/99887-deadbeef01.js':
+            return send(b'export const y=3;\n', 'text/javascript')
+        if u.path == '/_next/static/BUILDID123/_buildManifest.js':
+            # Next's pages-router route->chunks map: plain quoted strings in
+            # an array literal, never inside import()/from/new URL() — and
+            # this file sits ONE DIRECTORY DEEPER than static/chunks/ itself,
+            # so a same-directory join (correct for webpack.js above) resolves
+            # to the wrong URL here; only anchoring on '_next/' gets both right.
+            return send(b'self.__BUILD_MANIFEST={"/_error":'
+                        b'["static/chunks/pages/_error-abc999.js"]}', 'text/javascript')
+        if u.path == '/_next/static/chunks/pages/_error-abc999.js':
+            return send(b'export const z=4;\n', 'text/javascript')
+        if u.path == '/vendor/zone-bundle.js':
+            # Mixpanel-js bundled INLINE into a site's own app chunk (not
+            # loaded as a separate file) — confirmed live on wise.com,
+            # byte-identical stock library code across 7 zone bundles. Its
+            # own get_config accessor throws when a tracking call reaches an
+            # instance before async init sets `this.config`, which crashed
+            # the whole page: React's commit-phase boundary catches it (never
+            # reaching window.onerror, so RESILIENCE_SHIM cannot help), and
+            # Next.js cancels the render and mounts its error fallback in
+            # place of real content. Two minified variable-naming shapes,
+            # both seen on the real site, must both be hardened.
+            return send(
+                b"cZ.prototype.get_config=function(e){return this.config[e]};"
+                b"MixpanelLib.prototype.get_config=function(prop_name){"
+                b"return this.config[prop_name]};"
+                b"export const untouched=function(x){return this.other[x]};",
+                'text/javascript')
+        if u.path == '/libs/mixpanel-2-latest.min.js':
+            # The real SDK: a live init sequence a static mirror can never
+            # satisfy. Fetching this for real (and this handler answering it)
+            # would defeat the point of the test — the fix must intercept the
+            # request before it happens, per LIVE_ANALYTICS_SDK in build.py.
+            return send(b'REAL MIXPANEL SDK -- MUST NEVER SHIP IN A MIRROR',
+                        'text/javascript')
         if u.path == '/data-chunk-abc.json':
             return send(b'{"chunk":1}', 'application/json')
         if u.path == '/data-indexes-abc.json':
@@ -90,6 +134,10 @@ os.makedirs(f'{work}/_raw')
 PAGE = f'''<!doctype html><html><head>
 <link rel="stylesheet" href="{ORIGIN}/theme.css" integrity="sha384-DEADBEEF" crossorigin="anonymous">
 <script src="{ORIGIN}/app.mjs" type="module" integrity="sha384-CAFE"></script>
+<script src="{ORIGIN}/_next/static/chunks/webpack-abc123.js"></script>
+<script src="{ORIGIN}/_next/static/BUILDID123/_buildManifest.js"></script>
+<script src="{ORIGIN}/libs/mixpanel-2-latest.min.js"></script>
+<script src="{ORIGIN}/vendor/zone-bundle.js"></script>
 <style>:root{{--bg:url({ORIGIN}/hero.png?width=1024);--next-prop:red}}</style>
 </head><body>
 <img src="{ORIGIN}/hero.png?width=512" srcset="{ORIGIN}/hero.png?width=512 512w, {ORIGIN}/hero.png?width=1024 1024w">
@@ -221,6 +269,42 @@ check('fixed-point: asset referenced only inside chunk.mjs was mirrored',
 # not take the harvest pass down with it.
 check('a malformed template-literal spec next to a real import does not '
       'crash the build — the build ran to completion at all', True)
+check('a webpack chunk named only inside a runtime chunk-id map was mirrored',
+      any(f.startswith('99887-deadbeef01') for f in cdn), str(cdn))
+check('a chunk named only inside _buildManifest.js, one directory deeper '
+      'than the chunk itself, still resolves to the right URL',
+      any(f.startswith('_error-abc999') for f in cdn), str(cdn))
+
+mp = [f for f in cdn if f.startswith('mixpanel-2-latest')]
+check('the resilience shim is the first thing in <head>, before any '
+      'framework/vendor bundle it defends against',
+      re.search(r'<head>\s*<!--.*?-->\s*<script>', page, re.S) is not None, page[:400])
+check('the shim suppresses uncaught errors so one live-dependency crash '
+      "can't unmount the whole hydrated page",
+      "addEventListener('error'" in page and 'stopImmediatePropagation' in page, page[:400])
+check('the shim also suppresses unhandled promise rejections',
+      "addEventListener('unhandledrejection'" in page, page[:400])
+
+check('the mixpanel SDK is mirrored as a real cdn/ file, not left off-origin',
+      bool(mp), str(cdn))
+mp_body = open(f'{work}/cdn/{mp[0]}', 'rb').read() if mp else b''
+check("the SDK's real code is stubbed out, never shipped in the mirror",
+      b'REAL MIXPANEL SDK' not in mp_body, mp_body[:80])
+check('the stub still defines window.mixpanel so app code calling it does '
+      'not throw on undefined', b'window.mixpanel' in mp_body, mp_body)
+
+vendor = [f for f in cdn if f.startswith('zone-bundle')]
+vendor_body = open(f'{work}/cdn/{vendor[0]}').read() if vendor else ''
+check('a bundled (not stubbed-out-able) get_config accessor is hardened '
+      "against this.config being undefined, minified param name 'e'",
+      'cZ.prototype.get_config=function(e){return(this.config||{})[e]}'
+      in vendor_body, vendor_body)
+check('...and the differently-named param shape, unminified-ish',
+      'MixpanelLib.prototype.get_config=function(prop_name)'
+      '{return(this.config||{})[prop_name]}' in vendor_body, vendor_body)
+check('an unrelated same-shaped accessor on a DIFFERENT property is left '
+      'alone — the patch matches get_config specifically, not any accessor',
+      'return this.other[x]' in vendor_body, vendor_body)
 check('CMS -chunk-/-indexes- sibling derived',
       any('indexes' in f for f in cdn), str(cdn))
 check('HTML body served as .png was rejected, not written',
@@ -274,6 +358,8 @@ check('url relocalisation counted', man['markup_changes']['url-relocalisation'] 
 check('the tracker strip (GTM script + noscript iframe + SDK token) is '
       'classified, not silent',
       man['markup_changes']['tracker-strip'] == 3, man['markup_changes'])
+check('both bundled get_config accessor shapes counted as hardened, not silent',
+      man['markup_changes']['sdk-hardened'] == 2, man['markup_changes'])
 check('0 missing link targets on a mirror whose links all resolve',
       man['links']['missing_targets'] == 0, man['links'])
 check('0 bare # hrefs recorded', man['links']['bare_hash_hrefs'] == 0)
