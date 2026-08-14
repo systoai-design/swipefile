@@ -141,6 +141,26 @@ check('markup changes classified from the build manifest',
       data and data['integrity']['markup_changes']['classified'] == 1290,
       data and data['integrity']['markup_changes'])
 
+# ---- scope.built must count real files, not the crawler's raw queue.
+# crawl.py records one manifest entry per URL it fetched; a query-string
+# variant of an already-captured page (?region=PH vs ?region=SG on the same
+# fee-history page) is a distinct manifest entry there, but build.py's
+# slug-based dedup collapses it to the same file. Measured live on a 174-page
+# crawl: 32 of those were never distinct files, and scope.built read 174.
+dedup_crawl = {**CRAWL_MANIFEST,
+              'pages': [{'url': 'https://example.com/', 'slug': 'index.html'},
+                        {'url': 'https://example.com/?ref=a', 'slug': 'index.html'},
+                        {'url': 'https://example.com/?ref=b', 'slug': 'index.html'},
+                        {'url': 'https://example.com/about', 'slug': 'about.html'}]}
+dedup_build = {**BUILD_MANIFEST,
+              'pages': [{'slug': 'index.html', 'url': 'https://example.com/'},
+                        {'slug': 'about.html', 'url': 'https://example.com/about'}]}
+code, out, data = run(BASE, files={'build': dedup_build, 'crawl': dedup_crawl,
+                                   'copy': {'pass': True}, 'motion': {'pass': True}})
+check("scope.built counts unique files build.py wrote, not the crawler's raw "
+      'queue (4 manifest entries, 2 real files)',
+      data and data['scope']['built'] == 2, data and data['scope'])
+
 # ---- unmeasured is reported, never passed — and does not block by default
 UNMEASURED = setpath(BASE, 'integrity.origin_refs_remaining',
                      'not measured — no browser available')
@@ -403,6 +423,11 @@ code, out, data = run(setpath(drift, 'honesty.unresolved', ['hero randomises per
                       files=GATE_INPUTS)
 check('the same delta passes once the unresolved row explains it',
       status_of(data, 'geometry') == 'pass', status_of(data, 'geometry'))
+geo_detail = next(g['detail'] for g in data['gates']['detail'] if 'geometry' in g['gate'])
+check('a PASSING geometry gate does not claim the unresolved row is empty '
+      '(it is the reason the gate passed)',
+      'is empty' not in geo_detail and 'explained in honesty.unresolved' in geo_detail,
+      geo_detail)
 
 probs = setpath(BUILD_MANIFEST, 'assets',
                 {**BUILD_MANIFEST['assets'], 'problems': 5})

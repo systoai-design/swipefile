@@ -159,16 +159,29 @@
     }
   }, true);
 
+  // target+name pairs already recorded via the animationstart EVENT below —
+  // consulted by the WAAPI snapshot path further down so a native CSS
+  // @keyframes animation is never double-recorded under both its string key
+  // here and its animation-object key there.
+  const eventCovered = new Set();
+
   document.addEventListener('animationstart', (e) => {
     const t = e.target;
     if (!t.getBoundingClientRect) return;
     const cs = getComputedStyle(t);
+    eventCovered.add(`${selectorFor(t)}|${e.animationName}`);
     record(`${selectorFor(t)}|${e.animationName}|${order}`, {
       name: e.animationName, kind: 'CSSAnimation',
       target: selectorFor(t), text: (t.textContent || '').trim().slice(0, 40) || null,
       duration: ms(cs.animationDuration.split(',')[0]),
       delay: ms(cs.animationDelay.split(',')[0]),
-      easing: cs.animationTimingFunction.split(',')[0],
+      // Naive split(',')[0] tears a 4-parameter cubic-bezier at its first
+      // internal comma — cubic-bezier(0.34, 1.56, 0.64, 1) read back as the
+      // truncated, invalid 'cubic-bezier(0.34'. Measured live: this shipped
+      // a broken signature-curve value into a real capture. splitTop() is
+      // already correct for the CSS-transition path below; this event-driven
+      // CSS-animation path independently repeated the same mistake it fixes.
+      easing: splitTop(cs.animationTimingFunction)[0],
       iterations: cs.animationIterationCount.split(',')[0],
       values: null, ...where(t),
     });
@@ -181,6 +194,19 @@
       if (seen.has(a)) continue;
       if (a.constructor.name === 'CSSTransition') continue;   // covered by events
       const t = a.effect?.target;
+      // A native CSS @keyframes animation is ALSO covered by events, the same
+      // way CSSTransition is above — but the corresponding skip here was
+      // missing, so every @keyframes animation was recorded TWICE, once
+      // correctly via the event listener and once here with a silently WRONG
+      // easing: `effect.getTiming().easing` reflects the raw KeyframeEffect
+      // option, which for a browser-parsed @keyframes rule is 'linear'
+      // regardless of the real animation-timing-function — measured live,
+      // this planted a phantom 'linear' entry for every real curve, which
+      // pollutes exactly the frequency tally the library's signature-curve
+      // selection depends on ("the highest-frequency easing curve... the
+      // single most reusable thing in the entry").
+      if (a.constructor.name === 'CSSAnimation'
+          && eventCovered.has(`${selectorFor(t)}|${a.animationName}`)) continue;
       const timing = a.effect?.getComputedTiming?.() || {};
       record(a, {
         name: a.animationName || a.transitionProperty || 'js-animation',

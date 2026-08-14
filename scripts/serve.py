@@ -26,7 +26,7 @@ Usage:
 import argparse, os, re, sys
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urlsplit, quote
 
 RANGE_RE = re.compile(r'^(\d+)-(\d+)$')
 
@@ -109,6 +109,7 @@ class RangeQueryHandler(SimpleHTTPRequestHandler):
     extensions_map = {**SimpleHTTPRequestHandler.extensions_map, **EXTRA_TYPES}
     ranges_served = 0
     mistyped = 0
+    cdn_fallbacks = 0
 
     def guess_type(self, path):
         by_name = super().guess_type(path)
@@ -160,13 +161,32 @@ class RangeQueryHandler(SimpleHTTPRequestHandler):
             self.wfile.write(data)
         type(self).ranges_served += 1
 
+    def _reroute_missing_asset(self):
+        """build.py rewrites markup's own asset references to /cdn/<file>, but a
+        site's JS can build ITS OWN asset URLs at runtime from a publicPath baked
+        into the bundle at capture time — Next.js's webpack chunk loader is the
+        measured case. That request still targets the reference site's original
+        absolute path and 404s, even though build.py already mirrored the exact
+        same bytes into cdn/ under their original basename. Every mirrored asset
+        lives flat in cdn/ regardless of its source path, so one basename lookup
+        recovers it — no need to parse the minified bundle that built the URL.
+        """
+        if not os.path.isfile(self.translate_path(self.path)):
+            basename = os.path.basename(urlsplit(self.path).path)
+            if basename and os.path.isfile(os.path.join(self.directory, 'cdn', basename)):
+                type(self).cdn_fallbacks += 1
+                query = urlsplit(self.path).query
+                self.path = '/cdn/' + quote(basename) + (f'?{query}' if query else '')
+
     def do_GET(self):
+        self._reroute_missing_asset()
         spans = self._wanted()
         if spans is None:
             return super().do_GET()
         self._serve_ranges(spans, body=True)
 
     def do_HEAD(self):
+        self._reroute_missing_asset()
         spans = self._wanted()
         if spans is None:
             return super().do_HEAD()
@@ -190,7 +210,8 @@ def main():
             httpd.serve_forever()
         except KeyboardInterrupt:
             print(f'\nstopped. range requests served: {RangeQueryHandler.ranges_served}'
-                  f'   responses retyped from magic bytes: {RangeQueryHandler.mistyped}')
+                  f'   responses retyped from magic bytes: {RangeQueryHandler.mistyped}'
+                  f'   runtime asset URLs recovered via cdn/ fallback: {RangeQueryHandler.cdn_fallbacks}')
 
 
 if __name__ == '__main__':
