@@ -14,6 +14,11 @@ It is a Claude Agent Skill. `SKILL.md` is the procedure an agent follows,
 the accumulated memory, and this README is for the human deciding whether to
 install it.
 
+The clones are the training material, not the deliverable. Each capture leaves a
+measured entry behind, and those entries are what make the next build better,
+including builds with no reference at all. See
+[Every clone is a training input](#every-clone-is-a-training-input).
+
 Built by [Kyle at Systo](https://www.systo-ai.com).
 
 ---
@@ -220,11 +225,41 @@ Fidelity (`spec`, `partial`, `signature-only`, `none`) is decided by the script
 from what the capture actually contains. The model is told the value and never
 asked to judge it.
 
+## Every clone is a training input
+
+This is the part that is easy to miss, so it is worth stating outright: **the
+clones are not the product.** A mirror of apple.com is a study artifact that
+never gets published. What survives the job is the entry it leaves behind in
+`library/`, and that is the thing being accumulated.
+
+So the loop is deliberate. Clone a site, and the capture forces measurement of
+its type scale, its spacing rhythm, its easing curves, its reveal travel, its
+stagger ladders. Those measurements go into a structured entry. The next build,
+including a build with no reference at all, reads that entry and designs from a
+real system a working studio shipped, instead of from the statistical middle of
+everything the model has ever seen.
+
+That is what makes the second build better than the first, and the twentieth
+better than the second. Every entry follows `library/TEMPLATE.md`, so the corpus
+stays uniform, machine-readable, and directly usable as retrieval context for a
+local model. Uniform structure is the point: a freeform library is just notes.
+
+**The bet is that this crosses a threshold.** A handful of entries is a handful
+of opinions. Somewhere in the low hundreds it stops being reference material and
+starts being a design education: enough measured systems that most briefs have a
+genuinely apt donor, and enough cross-site patterns that the defaults get
+outvoted by evidence. Systo is aiming at roughly 100 captures for that.
+
+Being straight about where it stands today: **19 entries, 3 of them at `spec`
+fidelity.** The mechanism is proven at small N (two from-scratch builds
+independently cited the library and refused the generic look, above), and the
+compounding is the design intent, not a measured outcome yet. Nobody should
+believe the threshold claim until the library is large enough to test it.
+
 ## Your library, growing
 
-`library/INDEX.md` is what makes the second build better than the first. Right
-now, on this machine, it holds **19 measured design systems**, at a range of
-motion fidelity:
+`library/INDEX.md` is the index over that corpus. Right now, on this machine, it
+holds **19 measured design systems**, at a range of motion fidelity:
 
 | Fidelity | Meaning | Can build motion from it by name |
 |---|---|---|
