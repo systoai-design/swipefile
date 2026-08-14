@@ -1,33 +1,239 @@
 # swipefile
 
-A Claude Code skill that captures a reference website's design system — layout,
-tokens, typography, interaction states, animations — verifies it by measurement,
-and remembers it in a local library that compounds with every site it studies.
+*The swipe file that measures.*
 
-`SKILL.md` is the procedure and is the file Claude reads. This README is for the
-human installing it.
+Great designers have always kept swipe files — screenshots, links, motion
+studies of work worth learning from. This is that folder, made rigorous: it
+captures a reference site's actual design system (layout, tokens, type,
+interaction states, motion, copy), **verifies every number by measurement**
+instead of describing it in prose, and remembers what it learned in a local
+library that gets smarter with every site it studies.
+
+It is a Claude Agent Skill — `SKILL.md` is the procedure an agent follows,
+`scripts/` is the instrumentation that makes the procedure hold, `library/` is
+the accumulated memory, and this README is for the human deciding whether to
+install it.
+
+---
+
+## Why this exists
+
+Two failure modes, both common, both expensive:
+
+**A "clone" that isn't one.** Ask an agent to rebuild a site from a screenshot
+and a description, and you get a page that is *approximately* right — close
+enough to read as a knockoff, not close enough to actually replace the thing it
+copied. Every wrapped line, every off-by-8px gap, is a transcription error,
+because nothing was ever measured.
+
+**Original work that reads as generated.** Ask for a landing page with no
+reference at all, and you get the same three defaults every model reaches for:
+cream background, a serif display face, a terracotta accent, three feature
+cards, a testimonial, a footer. Not because the model is untalented — because
+it has nothing *specific* to draw from, so it draws from the mean.
+
+swipefile is built against both, with the same tool: **measure, don't guess.**
+A captured cubic-bezier is not replaced by `ease-in-out`. A type scale is kept
+as the ratio that produced it, not five px values. And once measured, it's
+remembered — so the next original build has real, specific systems to draw
+from instead of the generic answer.
+
+## See it work
+
+**Match — a local mirror of apple.com, byte-driven, not eyeballed.** Left is
+the live site; right is what swipefile built and served from disk. Same
+markup, same fonts fetched and served locally, same assets — verified against
+the reference with a pixel diff, not "looks about right."
+
+<p align="center">
+  <img src="assets/match-apple.png" alt="apple.com next to a locally mirrored copy served from disk, near-pixel-identical" width="100%">
+</p>
+
+**The library learning loop, working.** Same brief — "landing page for an
+independent coffee roastery, Portland" — built twice. Left carries measured
+motion and rhythm from a captured reference (Phenomenon, `Motion fidelity:
+spec` in the library). Right was built **with no reference given at all**,
+and independently avoided the cream/serif/terracotta default by citing the
+library instead — real behavior, not a claim:
+
+<p align="center">
+  <img src="assets/adapt-vs-original.png" alt="two landing pages for the same brief, one built from a named library reference and one from scratch, neither using the generic AI-default look" width="100%">
+</p>
+
+Both pages measured **zero AI-writing-tell findings** from `copy-gate.py`
+(no promotional filler, no inflated vocabulary, no rule-of-three padding) and
+shipped well under budget — 9.7KB / 4.0KB and 8.0KB / 2.9KB of gzipped
+CSS/JS. Re-run against the current gate, both still get flagged for a gap
+that's honest and worth naming: neither ships JSON-LD structured data, which
+the gate now treats as a hard failure. That's the gate doing its job on work
+that predates it, not a claim smoothed over.
+
+## The five jobs
+
+One skill, five outcomes, chosen by how you ask:
+
+| You say | You get |
+|---|---|
+| `swipefile https://stripe.com` (a bare URL) | **Match** — rebuild it faithfully. Full site crawl, working local nav, real fonts and assets served locally, verified to ≥95% pixel similarity before you see it. |
+| `like stripe.com but for my espresso brand — here's my content` | **Adapt** — the reference's *system* (rhythm, motion character, structural logic), your content and brand. Never mistakable for the reference; never a generic default either. |
+| `what animations does linear.app use?` | **Audit** — the extraction *is* the answer. Plain language plus an implementable spec: trigger, duration, easing, stagger, scroll offsets — confirmed by probing the page's own runtime, not by grepping bundle comments that lie. |
+| `use linear.app's hero animation on my hero section` | **Transfer** — one measured mechanism, translated into your existing stack and tokens. Near-exact: same curve, same travel, same stagger — never a second animation library your repo doesn't already have. |
+| `pull the brand kit from stripe.com` | **Brand** — palette with usage frequency (a colour used 40 times is structural; twice is decoration), type system, spacing rhythm, motion character. Or generate a new kit for your own subject from everything the library has learned. |
+
+Every library entry is also **callable by name** once captured — `reference:
+Phenomenon` needs no URL, and pulls its measured system straight from the
+library.
+
+## How a capture actually happens
+
+```
+consult library → capture → write the spec → build → diff → record
+```
+
+Not vibes at any step. Concretely:
+
+1. **Capture** drives a real browser over CDP (`scripts/cdp-run.py`) —
+   deliberately not a headless dump or an in-app preview pane, both of which
+   were measured to silently under-report motion (one returned **0
+   animations** on a page that had 10, because scroll-triggered reveals never
+   fire without a real viewport). Six artifacts get pulled: markup, tokens
+   (sampled from computed styles, not guessed from source CSS), the full
+   motion signature, interaction states, responsive behavior, and the raw
+   stylesheets.
+2. **The motion spec is an artifact you must hold, not a rule you're trusted
+   to remember.** `scripts/motion-spec.py` either hands you a per-animation
+   mapping — target, trigger, from→to, duration, easing, stagger — or it
+   **refuses** and tells you exactly how to get one. This exists because the
+   equivalent *prose* rule was quoted back correctly by an agent that had
+   just violated it three times in one session. Prose doesn't stop anything;
+   an artifact you can't build without does.
+3. **Build**, tokens first, motion last, `prefers-reduced-motion` always.
+4. **Diff.** Geometry, pixels, motion, and fonts are each checked by a
+   dedicated instrument (below) — never a single blended "looks close"
+   number, and never a screenshot standing in for a motion check (a
+   screenshot can't see that an animation is missing; a build can score 99%
+   pixel-identical and be completely static).
+5. **Record.** The site's design system — never its copy or imagery — goes
+   into `library/`, written so an agent six months from now with no memory of
+   today can build from it cold.
+
+## The gates
+
+Every one of these exists because the equivalent rule, written as prose, was
+skipped — correctly quoted back, and skipped anyway. So each is an
+instrument that measures and **refuses**, not a checklist an agent grades
+itself against.
+
+| Command | Refuses to let through |
+|---|---|
+| `motion-spec.py --name X` | building motion from a library entry that never actually measured a per-animation mapping |
+| `motion-diff.py ref.json build.json` | a build whose motion doesn't match the reference — durations, easing, stagger, weighted by real usage so decoration-tier values don't cause false alarms |
+| `font-gate.js` (run on both sides, compared) | a silently-fallen-back font — computed `fontFamily` lies while a fallback renders, so this is a canvas-width A/B, not a style read |
+| `copy-gate.py page.html` | AI-writing tells (12 categories, cross-checked against the `humanizer` skill), missing SEO essentials, absent JSON-LD — measured absent on 2 of 2 real builds until this existed |
+| `design-gate.py <url>` | the mechanical half of a taste pre-flight — oscillating theme sections, hero padding, banned default palettes, WCAG contrast on every CTA — run live below |
+| `library-lint.py` | a library entry the resolver would silently mis-read (an unanchored regex once promoted a `partial` entry to buildable by matching the wrong line) |
+| `provenance.py entry.md capture.json` | a library entry asserting a number, hex, or curve the capture never actually measured — the fabrication a local model produced is below |
+| `report.py --measured m.json` | calling a Match "done" on a metric nobody read; every row is present or explicitly `not measured — <why>`, never silently omitted |
+| `package.py` | shipping anything the machine captured — the distributable is built from an allowlist, then independently re-audited, so "reset the library before publishing" can't be a step someone forgets |
+
+**A gate that cries wolf gets ignored** — the failure this whole approach
+exists to prevent — so every one of these is tuned against that: warnings
+never block, and every FAIL rule has zero violators on real captures before
+it ships.
+
+### One of them, running for real, right now
+
+```
+$ python3 design-gate.py http://127.0.0.1:8920/ --src ./meridian-build
+
+design gate — http://127.0.0.1:8920/
+mode adapt · viewports 390, 1440
+
+  FAIL  zero em-dashes in rendered text  — 2 found: "...pause or cancel from
+        any shipment email — there is no minimum..."
+  ok    no banned filler strings in copy
+  ok    eyebrow count <= ceil(sections/3) = 2  — 0 over 5 sections
+  FAIL  page theme lock: no oscillating light/dark sections  — 4 crossings
+  FAIL  hero top padding <= 96px at 1440px  — 192px
+  ok    every CTA clears WCAG AA
+  ok    not the default premium-consumer beige+brass palette
+  ok    prefers-reduced-motion present
+  ...
+
+DESIGN GATE: NOT DONE — 3 check(s) failing, 2 warning(s).
+The judgement half of the pre-flight is NOT in this number. Run the
+fresh-eyes critique pass before calling the page done (references/taste.md).
+```
+
+That's a real build from this repo, measured live, failing on real issues —
+an em dash in body copy, a hero with too much top padding, a page whose
+sections flip light/dark without a reason. Nothing in that output is
+theoretical.
+
+## Local models can write library entries — supervised
+
+`scripts/local-entry.py` lets a small model running on your own machine
+(Ollama) draft library entries from a capture — free, private, and the one
+Step-5 job that's pure labor once the measurements exist. It is not trusted
+unsupervised: measured directly, a 7B model handed a real capture invented a
+capture date and dropped every hex value and easing curve while producing a
+structurally perfect entry. So nothing it writes reaches `library/` on its
+own word — every draft has to clear **both** `library-lint.py` (can the
+resolver actually read it) and `provenance.py` (does every number trace back
+to the capture), and a rejected draft is retried with the gate's own output
+fed back into the next attempt.
+
+```bash
+python3 local-entry.py --measured capture.json --domain example.com          # draft only
+python3 local-entry.py --measured capture.json --domain example.com --write  # gated, then committed
+```
+
+Fidelity (`spec` / `partial` / `signature-only` / `none`) is decided by the
+script from what the capture actually contains — the model is told the
+value, never asked to judge it.
+
+## Your library, growing
+
+`library/INDEX.md` is what makes the second build better than the first.
+Right now, on this machine, it holds **19 measured design systems** — real
+sites, real curves, real ratios — at a range of motion fidelity:
+
+| Fidelity | Meaning | Can build motion from it by name |
+|---|---|---|
+| `spec` | full per-animation mapping | yes |
+| `partial` | real values, no per-animation map | not yet — one cheap re-capture pass |
+| `signature-only` | ranked curves, a character sentence | no — a vocabulary, not a mapping |
+| `none` | motion exists, never measured | no |
+
+Every entry records the *system*, never the content — palettes, type ratios,
+spacing rhythm, motion signatures, structural mechanisms, and the gotchas
+that cost real time to find. No copy, no imagery, no logos. That's the line:
+layout and motion patterns are the shared vocabulary of web design; a site's
+actual words and pictures are not, and the library keeps to the former.
+
+Pick donors **by mechanism quality, never by subject** — an athlete's site
+can supply the scale system for a B2B product. The library doesn't care what
+industry a reference is in; it cares whether the reveal is measured at 5px
+or 40px.
 
 ## Install
-
-Clone into your Claude Code skills directory:
 
 ```bash
 git clone <your-remote> ~/.claude/skills/swipefile
 ```
 
-The folder is self-contained and framework-neutral: plain Markdown plus plain
-Python. Nothing in the workflow requires a particular agent harness.
-
-## Requirements
+Self-contained and framework-neutral: plain Markdown, plain Python. Nothing
+in the workflow requires a specific agent harness.
 
 | For | Needs |
 |---|---|
 | Everything except live capture | Python 3.9+, standard library only |
-| Driving a real browser (`cdp-run.py`, the `motion` and `font` suites) | Google Chrome or Chromium, plus `pip install websockets` |
+| Driving a real browser (`cdp-run.py`, and the `motion`/`font`/`design` suites) | Chrome or Chromium, plus `pip install websockets` |
 | The Playwright capture path (`capture.py`) | `pip install playwright && playwright install chromium` |
+| `local-entry.py` | Ollama, running locally |
 
-Both browser-dependent test suites **skip cleanly** when Chrome or `websockets`
-is missing, so the suite is green on a bare machine — it just verifies less.
+Browser-dependent suites **skip cleanly** when Chrome or `websockets` is
+missing — the test suite stays green on a bare machine, it just verifies less.
 
 ## Verify the install
 
@@ -35,46 +241,55 @@ is missing, so the suite is green on a bare machine — it just verifies less.
 python3 scripts/selftest.py
 ```
 
-Ten suites, no network and no downloaded fixtures: each stands up a synthetic
-origin, runs the real script against it, and asserts on the artifacts. Every
-case corresponds to a failure measured on a real capture, so a pass means the
-engine still does the thing that was paid for.
+Every suite stands up a synthetic origin, runs the real script against it,
+and asserts on the artifacts — no network, no downloaded fixtures. Each case
+corresponds to a failure that was actually measured on a real capture, so a
+pass means the engine still does the thing that was paid for. Run today,
+fresh, on this checkout:
 
-```bash
-python3 scripts/selftest.py serve     # one suite
+```
+  ok    serve       26 passed    0 failed
+  ok    build       64 passed    0 failed
+  ok    crawl       11 passed    0 failed
+  ok    capture      4 passed    0 failed
+  ok    library     51 passed    0 failed
+  ok    spec        19 passed    0 failed
+  ok    provenance  46 passed    0 failed
+  ok    local       38 passed    0 failed
+  ok    motion      17 passed    0 failed
+  ok    font        27 passed    0 failed
+  ok    copy        24 passed    0 failed
+  ok    report      82 passed    0 failed
+  ok    design      47 passed    0 failed
+  ok    package     55 passed    0 failed
+====================================================================
+511 passed, 0 failed
 ```
 
-## The gates
+## The publication line
 
-Each is an instrument rather than a paragraph, because this project has measured
-that written rules get quoted back correctly while being skipped.
+Layout, spacing, type ratios, colour relationships, and motion patterns are
+the shared vocabulary of web design — learning from them is ordinary
+practice, and it's what every browser loading a page already does. Logos,
+photography, licensed fonts, and body copy are not, and a wholesale clone
+presented as original work is not either.
 
-| Command | Refuses |
-|---|---|
-| `python3 scripts/library-lint.py` | a library entry the resolver would silently mis-read |
-| `python3 scripts/motion-spec.py --name X` | building motion from an entry that never measured it |
-| `python3 scripts/copy-gate.py page.html` | AI-writing tells, missing SEO, absent structured data |
-| `python3 scripts/motion-diff.py ref.json build.json` | a build whose motion does not match the reference |
-| `python3 scripts/report.py --measured m.json` | calling a replication done on numbers nobody read |
-| `python3 scripts/package.py` | shipping anything the machine captured |
-| `python3 scripts/provenance.py entry.md capture.json` | an entry asserting anything the capture didn't measure |
-| `python3 scripts/local-entry.py --measured capture.json --domain x.com` | a local model's draft reaching the library unchecked (needs Ollama) |
-
-## Your library is yours
-
-`library/` accumulates what this installation has measured, one entry per site.
-It is knowledge — ratios, curves, breakpoints, mechanisms — and never contains a
-site's copy, imagery, or assets.
-
-**It is also a record of what you have studied.** If you publish this repository,
-publish it from `scripts/package.py`, which builds a distributable with the
-library reset to an empty scaffold and refuses to write the archive if a captured
-entry, a mirror artifact, or a build product is anywhere inside it:
+The constraint that matters is **publication, not possession.** A local
+Match is a study artifact — links inert, forms inert, do-not-publish stamped
+in the file — meant to be refilled with your own content before it goes
+anywhere public. `scripts/package.py` enforces the other half of that line
+mechanically: if you publish *this repository*, publish it from `package.py`,
+which resets `library/` to an empty scaffold and refuses to build the archive
+if a captured entry, a mirror artifact, or anything from this machine's own
+corpus is anywhere inside it. A private repo syncing your own machines is a
+different case — there, the library traveling with you is the entire point.
 
 ```bash
-python3 scripts/package.py            # -> dist/swipefile/ and dist/swipefile.skill
+python3 scripts/package.py                    # -> dist/swipefile/ + dist/swipefile.skill
 python3 scripts/package.py --verify dist/swipefile
 ```
 
-A private repository syncing your own machines is a different case — there the
-library travelling with you is the entire point.
+---
+
+*Read `SKILL.md` for the actual procedure — this file is the pitch, that one
+is the instructions the agent follows.*
