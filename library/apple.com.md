@@ -148,3 +148,128 @@ data. Assets: 5725/5800 mirrored (75 failures: Apple Pay favicons, ~10 Apple
 Music thumbnails, one stray non-asset URL — none on the design surface
 crawled). Scope: 30 of 846 sitemap pages (bulk excluded and quoted: 140 legal,
 127 locale variants, 94 education, 79 feedback, 51 business).
+
+---
+
+# Addendum — 2026-08-11 · Liquid Glass (Adapt capture)
+
+Second capture against a different surface set, for an **Adapt** job (a dark
+finance dashboard "like Apple's Liquid Glass"). Three pages, headless CDP,
+1440×900: `developer.apple.com/design/human-interface-guidelines/materials`,
+`apple.com/os/macos/`, and the June 2025 newsroom design announcement.
+
+**The finding that governs any Liquid Glass job.** Apple's *web* properties are
+NOT rendered in Liquid Glass. Liquid Glass is the OS material (iOS 26 / macOS
+Tahoe 26); apple.com and developer.apple.com ship Apple's ordinary marketing
+chrome. Confirmed across all three pages: **no lensing, no refraction, no
+specular or edge highlight, no displacement filter and no inset highlight
+anywhere in their CSS.** So a capture of an Apple web page cannot supply a
+Liquid Glass recipe, and any entry that implies otherwise will produce a
+confidently wrong build. Split the job in two — measure the web chrome, and take
+the material's behaviour from Apple's own documentation.
+
+## MEASURED — Apple's real web glass recipe
+
+The whole system, and it is smaller than people assume:
+
+- **Bars and scrims:** `backdrop-filter: saturate(180%) blur(20px)` over a
+  **70–80% alpha** fill. Light `rgba(250,250,252,.8)` / dark `rgba(22,22,23,.8)`;
+  the sticky sub-nav uses `rgba(255,255,255,.7)` → `rgba(29,29,31,.7)` dark.
+- **Small round controls:** `blur(10px)` over **80%** white, `border-radius: 50%`
+  at 44×44 (a pill variant at 92×44 / radius 22).
+- **The entire edge treatment is one 1px hairline**, `rgba(29,29,31,0.2)`, drawn
+  as a `::after` with `inset: 100% auto auto 0`. **No border on the glass
+  element, no inset highlight, no box-shadow, no gradient.**
+- **Surface transition:** `backdrop-filter, background-color` @ **0.4s
+  `cubic-bezier(0.4,0,0.25,1)`**.
+- Every declaration is wrapped in `@supports (backdrop-filter: initial)` with an
+  **alpha-bump-to-0.9 fallback** and an explicit `-noblur` class escape hatch.
+- Declared-but-unmounted extremes worth knowing: a notification container at
+  `blur(80px)` / radius 100px, and `.modal-curtain-blur` at `blur(20px)`.
+
+## MEASURED — motion (newsroom page, two-phase `--pre` capture)
+
+34 animations, 32 CSSAnimation / 2 CSSTransition, 20 scroll-triggered.
+Durations by frequency: **800ms ×20**, **320ms ×12**, 300ms ×2.
+Resolved curves: the 800ms reveal is `cubic-bezier(0.4, 0, 0.25, 1)`; the 320ms
+nav ladder is `cubic-bezier(0.4, 0, 0.6, 1)`.
+
+Reveal spec (`nr-scroll-animation`, 10 instances): IntersectionObserver, **no
+library**, fires once, arms when the element top crosses **~97–101% of viewport
+height** (the bottom edge). `opacity 0→1` + `translate(0, 20%)→0`, 800ms, no
+stagger — each block independent. Note the trigger-offset histogram also showed
+39–81% readings; those are artefacts of an 805px scroll step overshooting, not
+real triggers. Read the cluster, not the outliers.
+
+## DOCUMENTED — the Liquid Glass rules that change how you build
+
+From Apple's HIG "Materials" and "Color" pages. These are behaviour rules, not
+measurements, and the first one is the one people get wrong:
+
+1. **Liquid Glass is the FUNCTIONAL layer only** — controls and navigation (tab
+   bars, sidebars, toolbars) floating above content. Apple **explicitly
+   prohibits it in the content layer**, prescribing *standard materials* there;
+   the stated reason is that it otherwise produces confusing hierarchy. The one
+   exception is transient interactive controls (sliders, toggles) which adopt it
+   *while being activated*. Practical consequence: a build wants **two** surface
+   systems, not one glass class on every card.
+2. **Two variants.** *Regular* blurs and adjusts background luminosity for
+   legibility — most components, and anything text-heavy (alerts, sidebars,
+   popovers). *Clear* is highly translucent, for floating over media.
+3. **The one hard number on the page:** clear glass over bright content wants a
+   **35% dark dimming layer**.
+4. **No inherent colour** — it takes colour from the content behind it. Tint is
+   for emphasis only (a primary action, a status indicator); colour the
+   background, never the symbols or text; never tint several controls at once.
+5. **Larger elements read more opaque** (sidebars vs toolbars), to hold
+   legibility over complex backgrounds. So alpha should scale with surface size.
+6. **Small elements adapt light/dark** to the content behind them, with
+   monochromatic symbols/text.
+7. **Use it sparingly** — limited to the most important functional elements.
+8. Accessibility settings that **reduce transparency or increase contrast**
+   change the material, and macOS 27 adds a user slider spanning "ultraclear to
+   fully tinted".
+9. Prefer a **scroll edge effect** over a filled background to separate the
+   control area from content.
+
+macOS Tahoe's marketing page documents almost nothing (Liquid Glass is named
+twice, both marketing copy) but does assert two things: **refraction is real**
+and was made *more uniform* in 27, and **contrast/readability** was the goal of
+that revision.
+
+## Gotchas from this pass
+
+6. **The browser-level CDP endpoint has no Page/Runtime domains.** Connecting to
+   `/json/version`'s `webSocketDebuggerUrl` and calling `Page.navigate` returns
+   `-32601 'Page.navigate' wasn't found` for every call, which reads as a broken
+   script rather than a wrong socket. Attach to a **page target** from
+   `/json/list` instead. Cost ~20 minutes here; it is a one-line fix.
+7. **Sheets silently coerces `N/M` strings into dates in the xlsx export.**
+   Installment markers like `6/6`, `11/12`, `1/9` are stored as real datetimes
+   wherever N≤12 and M≤31; `16/18` and `20/36` survive as text because they are
+   not valid dates. The **CSV export keeps the display text**. Any xlsx-only
+   parse of a spreadsheet with fraction-shaped cells emits garbage for the
+   majority of them and looks fine for the rest. Parse both and cross-verify.
+8. **The CSV export rounds to whole units while the xlsx keeps decimals.** Same
+   sheet, two exports, different values — on a finance sheet that is silent data
+   loss. The xlsx numerics are authoritative; keep the CSV text as `raw`.
+9. **Glass needs a high-contrast environment, not a pretty one.** A smooth
+   gradient env map reflects as a smooth wash and `MeshPhysicalMaterial`
+   transmission renders as matte plastic no matter how the material is tuned.
+   A dark surround with a few bright, tight, soft-edged sources — a studio rig —
+   is what makes it read as glass. Equally: **transmission refracts what is
+   behind the object**, so glass in front of a flat colour field looks like a
+   solid ball. Either give the background structure or accept the orb.
+10. **Emissive panels in an env scene refract as hard-edged rectangles** inside
+    the glass, which read as rendering artefacts. Use a gradient/blob canvas
+    texture through `PMREMGenerator.fromEquirectangular` instead — and expect to
+    push `envMapIntensity` to ~3, because a canvas texture tops out at 1.0 per
+    channel where emissive panels ran to 6.
+
+## Verification achieved (this pass)
+
+Capture only — no mirror, no pixel diff (Adapt mode). 3 surfaces, ~40 JSON
+extracts and ~50 screenshots. Motion captured two-phase with `--pre`. The
+translucency recipe above is complete for the pages captured; **no Liquid Glass
+values were measured, because none exist on the web** — everything in the
+DOCUMENTED section is Apple's stated behaviour, quoted, not observed.

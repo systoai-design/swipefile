@@ -20,6 +20,22 @@ The document root is `site/`, not the run root. Pages reference assets as
 `build.py` symlinks `site/cdn -> ../cdn` so both forms resolve from that root.
 Serve any other directory and every asset 404s while the build log stays clean.
 
+**On Windows, verify that symlink is real before trusting it for anything
+Chrome or Python reads.** Git-Bash's `ln -s` on a directory can report success
+— `ls -la`/`readlink` from Git-Bash itself both show a working link — while
+`os.path.islink()` (native Python) returns `False` on the same path, meaning
+Windows-native processes (the static file server, the browser) never actually
+follow it. The failure is silent and severe: `site/cdn` silently degrades into
+an independent, un-synced physical copy, so every edit made afterward to the
+real `cdn/` (a rebrand pass, an asset fix) never reaches what gets served —
+symptoms look exactly like a live framework bug (React hydration mismatches,
+stale text that "should" be fixed) rather than a stale-mirror problem. Verify
+with `python3 -c "import os; print(os.path.islink('site/cdn'))"` after any
+manual directory move/relink (e.g. relocating `site/`+`cdn/` out of
+`crawl-out/`); if it prints `False`, `rm -rf site/cdn && cp -r cdn site/cdn`
+instead, and re-copy after every subsequent edit to `cdn/` — there is no
+symlink to rely on once this happens. Seen on agentwise.framer.website.
+
 Serve with `serve.py`, never `python3 -m http.server` — the stock server ignores
 the `?range=` query parameter that Framer's CMS loader uses to slice data
 chunks, and the resulting length mismatch collapses the rendered page. See

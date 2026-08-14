@@ -1,6 +1,6 @@
 # wise.com
 
-**Callable as: Wise** (aliases: wise, wise.com, transferwise)
+**Callable as: Wise.com** (aliases: transferwise)
 
 International money-transfer / multi-currency account product marketing site.
 Captured 2026-08-08 @ 1280x900. **Mirror path**, 142-page crawl of the `/us/`

@@ -42,7 +42,7 @@ ALLOW = (
     # legitimately carries six cubic-beziers), so a new doc costs one reviewed
     # line here and is named in the NOT SHIPPED warning until it gets one.
     ('references', ('adaptation.md', 'capture.md', 'copy.md', 'crawl.md',
-                    'mirror.md', 'motion.md', 'report.md', 'verify.md')),
+                    'mirror.md', 'motion.md', 'report.md', 'taste.md', 'verify.md')),
     ('scripts', ('*.py', '*.js')),
     ('scripts/tests', ('*.py',)),
     ('library', ('TEMPLATE.md',)),          # INDEX.md is regenerated, never copied
@@ -70,7 +70,11 @@ REQUIRED_IN_BUNDLE = ('SKILL.md', 'scripts/selftest.py',
 # placeholders — `<Name>`, `<spec | partial | …>` — so the test is a REAL value:
 # angle brackets are excluded from the name, and the fidelity must be a literal
 # enum member.
-ENTRY_CALLABLE = re.compile(r'\*\*Callable as:\s*([^*\n<>]+?)\s*\*\*')
+# Braces are excluded for the same reason, and it is not hypothetical: the entry
+# line appears in local-entry.py as the format string `{name}` it writes entries
+# WITH, and the gate accused the generator of being one of the things it
+# generates. A placeholder is not a capture, whichever syntax spells it.
+ENTRY_CALLABLE = re.compile(r'\*\*Callable as:\s*([^*\n<>{}]+?)\s*\*\*')
 ENTRY_FIDELITY = re.compile(r'\*\*Motion fidelity:\s*(?:spec|partial|signature-only|none)\b')
 # Fixtures under here are synthetic entries by design — the suite cannot test an
 # entry gate without writing entry-shaped files. They are still corpus-scanned.

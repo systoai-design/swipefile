@@ -43,6 +43,17 @@ failure, because it is the one that feels safe.
 Both modes share Steps 1–4 below. Adapt inserts one extra step before building;
 see `references/adaptation.md`.
 
+**Adapt also picks up a second rulebook, and the order between them is fixed.**
+The reference does not dictate everything — not the copy, not the CTA labels,
+not the states it has no equivalent of — and every gap it leaves gets filled
+with a default. A build can carry a reference's proportions faithfully and still
+ship the house AI aesthetic in the space between them. So: a **measured**
+reference value wins wherever one exists; a taste rule wins wherever the
+reference is silent; and the accessibility hard bans (contrast, reduced motion,
+a hero that fits, a nav on one line) win over the reference itself, because an
+Adapt ships publicly under the user's name and a Match never ships at all.
+`references/taste.md` has the full order and the gate that enforces it.
+
 **Adapt and Transfer digest the reference completely before building — same full
 Step 1 capture as Match, section by section.** Not the gist and not a
 recollection. A library entry is a partial substitute and only a scoped one: it
@@ -105,6 +116,15 @@ feel-test applies at component scale: same character, their brand.
 
 **Brand** — "pull the brand kit out of this site", and eventually "make me a
 new one." Two halves, one available now and one that matures with the library:
+
+**This job and the `brandkit` skill both answer to "brand kit", and they produce
+different objects.** This one produces the measured *system* — palette with
+usage frequency, type scale and ratio, spacing base unit, radius and shadow
+language, motion character, logo treatment rules — as `BRAND-KIT.md` plus CSS
+custom properties and JSON. `brandkit` produces the rendered *imagery*:
+guideline boards, logo concepts, mockups, decks. When both are wanted, **this
+runs first and `brandkit` renders from these tokens**; the other order invents
+values the build then has to match. `design-stack` holds the full routing.
 
 *Extraction (now).* From a capture, deliver a brand kit as a document plus
 tokens: palette with semantic roles **and usage frequency** (a colour used 40
@@ -462,6 +482,14 @@ Same rule for images, icons, and logos: fetch them, keep them local, and record
 in the build notes what came from the reference. A gradient in place of a real
 image is a defect, not a placeholder.
 
+**In Adapt, the reference's images are the one thing you cannot carry over** —
+they are the part that belongs to the reference, and the build ships under the
+user's name. So an Adapt needs its own imagery, and a page of coloured
+rectangles where the reference had photographs loses the thing the measurement
+was for. Generate it with `imagegen-frontend-web` (or `-mobile` for app
+screens) **before building**, at the section geometry this capture measured, so
+the layout is planned around real assets rather than retrofitted to them.
+
 ## Step 4 — Close the loop with visual diffs
 
 This is what gets the result close, and it's the step most often skipped.
@@ -512,6 +540,31 @@ off.
 For Adapt mode, the diff question changes: not "is this the same?" but "does
 this carry the same feel with its own identity?" Matching too closely in Adapt
 mode is a failure, not a success.
+
+**Which means Adapt, Brand and every original build have no pixel target — so
+they get their own gate, and it is not optional.** Everything above measures a
+build against a reference. A build with no reference has historically shipped on
+an adjective, which is the exact handover the report exists to replace.
+
+```bash
+python3 design-gate.py http://127.0.0.1:8791/ --mode adapt --src ../src --out design.json
+python3 report.py ... --design design.json      # sits beside the fidelity gates
+```
+
+It measures the mechanical half of a taste pre-flight on the served page:
+composited contrast on every CTA and form control, wrapped button labels, the
+eyebrow census against its own budget, the light/dark section sequence, the
+accent and radius censuses, painted-vs-declared font families, and the
+source-level rules a rendered page cannot show. Same vocabulary as every gate
+here — pass / FAIL / WARN / UNVERIFIED, and unverified is never a pass.
+
+The other half — is the copy LLM-flavoured, is each animation motivated, does
+the whole thing read as templated — is not mechanical and must not be faked by
+self-review: the author defends what the author just wrote. It goes to a
+subagent that never saw the build happen, given the screenshots and the rendered
+text and **not** your reasoning. `references/taste.md` has the loop, the
+precedence rule for where a measured reference value beats a house rule and
+where it does not, and the honest list of what neither gate covers.
 
 **Close every Match with the replication report, and get it from
 `scripts/report.py`** — not from the table in `references/report.md`, which is

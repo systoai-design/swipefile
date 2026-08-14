@@ -128,6 +128,31 @@ grep -oE 'url\("?[^")]+\.woff2"?\)' ref.css   # resolve against the CSS file's U
 Licensed fonts and the site's photography stay local. Say so in the notes, and
 see the copying section in `SKILL.md` before anything gets published.
 
+## Full-page screenshots: tile, don't resize
+
+The usual full-page trick — read `document.documentElement.scrollHeight`, set the
+viewport to that height, then `captureBeyondViewport` — **re-lays-out every
+`100vh` / `min-height: 100dvh` section**, so each becomes a full *page* tall and
+the image explodes. Measured twice in one session: a Framer template went
+16,740px → 111,780px, and a Divi page 7,907px → 12,943px. Nothing errors. You
+just get a very tall image whose proportions no longer match what a visitor sees,
+and any geometry read off it is wrong.
+
+Capture **viewport-sized tiles at fixed scroll positions** instead:
+
+1. Set the real viewport (e.g. 1440×900) and navigate.
+2. Scroll top→bottom once to prime lazy content and fire reveals, then return to 0.
+3. Shoot at `y = 0, h, 2h …`, scrolling between shots and pausing ~0.8s.
+
+Only reach for the resize trick on a page you have confirmed has no viewport
+units in its section heights — and confirm, don't assume.
+
+Related, and it costs about twenty minutes every time: `/json/version`'s
+`webSocketDebuggerUrl` is the **browser**-level CDP endpoint and has no
+`Page`/`Runtime` domains, so every call returns
+`-32601 'Page.enable' wasn't found` and reads like a broken script. Attach to a
+**page target** from `/json/list` instead.
+
 ## Consent banners
 
 A cookie or consent overlay will sit in front of the design and wreck any
