@@ -145,16 +145,26 @@ def font_gate(fonts):
     return ('pass' if not bad else 'fail'), bad
 
 
-def scope_block(crawl, measured, single_page):
-    """Built / excluded / sitemap set-difference, from the crawler's own manifest."""
+def scope_block(crawl, build, measured, single_page):
+    """Built / excluded / sitemap set-difference, from the crawler's own manifest.
+
+    'built' means pages actually WRITTEN TO DISK, which is build.py's page
+    list, not crawl.py's raw queue — a query-string variant of an already-
+    captured URL (?region=PH vs ?region=SG on the same fee-history page) is
+    one real page, but crawl.py records it as a separate manifest entry before
+    build.py's slug-based dedup collapses it. Measured live: 174 crawl entries
+    collapsed to 142 real files, and the report's own scope line claimed 174
+    built when 32 of those were never distinct files at all.
+    """
     if crawl:
         skipped = crawl.get('skipped') or {}
         reasons = {}
         for why in skipped.values():
             reasons[why] = reasons.get(why, 0) + 1
         sitemap_only = list(crawl.get('sitemap_only') or [])
-        return {'built': len(crawl.get('pages') or []),
-                'sitemap_total': len(crawl.get('pages') or []) + len(sitemap_only),
+        built = len(build.get('pages') or []) if build else len(crawl.get('pages') or [])
+        return {'built': built,
+                'sitemap_total': built + len(sitemap_only),
                 'sitemap_only': sitemap_only,
                 'crawl_only': list(crawl.get('crawl_only') or []),
                 'unlisted': [u for u in sitemap_only if u not in skipped],
@@ -194,7 +204,7 @@ def assemble(a, crawl, build, copy, motion, design, measured):
     no_build = 'not measured — no build manifest supplied'
     return {
         'site': a.site, 'date': a.date, 'mode': a.mode, 'path': a.path,
-        'scope': scope_block(crawl, measured, a.single_page),
+        'scope': scope_block(crawl, build, measured, a.single_page),
         'fidelity': {
             'text_pct': m('fidelity.text_pct'),
             'text_chars': m('fidelity.text_chars'),
@@ -371,9 +381,15 @@ def gates(r):
     else:
         worst = geo.get('worst_delta_px')
         explained = bool(unresolved) and not unmeasured(unresolved)
-        gate('geometry: worst delta zero or explained', worst, worst == 0 or explained,
-             f'worst delta {worst}px and the unresolved row is empty — '
-             f'a delta with no stated cause is not an explained one')
+        if worst == 0:
+            detail = 'worst delta 0px'
+        elif explained:
+            detail = (f'worst delta {worst}px, explained in honesty.unresolved '
+                      f'({len(unresolved)} entr{"y" if len(unresolved) == 1 else "ies"})')
+        else:
+            detail = (f'worst delta {worst}px and honesty.unresolved is empty — '
+                      f'a delta with no stated cause is not an explained one')
+        gate('geometry: worst delta zero or explained', worst, worst == 0 or explained, detail)
 
     problems = dig(r, 'integrity.assets.problems')
     gate('asset integrity problems = 0', problems, problems == 0, f'{problems} problems')

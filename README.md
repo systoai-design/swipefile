@@ -57,6 +57,8 @@ that written rules get quoted back correctly while being skipped.
 | `python3 scripts/motion-diff.py ref.json build.json` | a build whose motion does not match the reference |
 | `python3 scripts/report.py --measured m.json` | calling a replication done on numbers nobody read |
 | `python3 scripts/package.py` | shipping anything the machine captured |
+| `python3 scripts/provenance.py entry.md capture.json` | an entry asserting anything the capture didn't measure |
+| `python3 scripts/local-entry.py --measured capture.json --domain x.com` | a local model's draft reaching the library unchecked (needs Ollama) |
 
 ## Your library is yours
 

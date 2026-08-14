@@ -20,7 +20,7 @@ Then serve with:     python3 serve.py --directory site
 """
 import argparse, hashlib, json, os, re, glob, shutil, subprocess
 from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit, quote
 from urllib.request import Request, urlopen
 
 UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -60,9 +60,147 @@ ATTR_URL = re.compile(r"""((?:src|href|poster|data-src)\s*=\s*)(["'])([^"']+)(\2
 # where a real photo belongs, on img/source pairs everywhere responsive art
 # direction is used.
 SRCSET_ATTR = re.compile(r'\bsrcset\s*=\s*(["\'])([^"\']+)\1', re.I)
+# Google Tag Manager's own published async-loader snippet, byte-for-byte the
+# same shape on the large majority of GTM-instrumented sites: a bootstrap
+# builds its beacon URL by STRING CONCATENATION at runtime
+# (`'https://…/wisetag?id='+i+dl`), so it is invisible to every URL-attribute
+# and url()-based rewrite pass above — measured live: a mirror with 0 origin
+# refs by every static and asset-level check still fired a real request
+# against the target's own production analytics on load. Matched by its two
+# structural fingerprints (`event:'gtm.js'`, `insertBefore(j,f)`) rather than
+# by container ID, so it generalises to any site's GTM install, and bounded to
+# one `<script>...</script>` so it cannot eat an unrelated adjacent tag.
+GTM_INLINE = re.compile(
+    r'<script(?:(?!</script>)[^>])*>'
+    r'(?:(?!</script>).)*?event:\s*[\'"]gtm\.js[\'"]'
+    r'(?:(?!</script>).)*?insertBefore\(j\s*,\s*f\)'
+    r'(?:(?!</script>).)*?</script>', re.S)
+# The no-JS fallback for the same tag: a live off-origin reference sitting in
+# ordinary renderable markup, invisible to a JS-driven off-origin-request
+# measurement (a <noscript> subtree never executes with JS enabled) but real
+# for a screen reader or JS-disabled visit, and still "a live reference to the
+# reference's origin" by the report's own definition either way.
+GTM_NOSCRIPT = re.compile(
+    r'<noscript>\s*<iframe[^>]*\bgtm-iframe\b[^>]*></iframe>\s*</noscript>', re.I)
+# Same class as GTM_INLINE, one config value rather than a whole script: a
+# bundled analytics SDK (Mixpanel) reads its token from an embedded runtime
+# config blob and fires its OWN beacon request at load, invisible to every
+# markup-level rewrite. Scoped to the key inside the `"mixpanel":{...}` object
+# specifically — a bare `"token":"..."` pattern would also hit unrelated
+# tokens (OAuth, CSRF, other vendors' own "token" keys) sitting elsewhere in
+# the same config blob.
+MIXPANEL_TOKEN = re.compile(r'("mixpanel":\{[^}]*?"token":")[a-f0-9]{16,64}(")')
+# Blanking the token above stops the beacon but not the SDK: Mixpanel's own
+# init sequence hits a remote "decide"/config endpoint that cannot exist on a
+# static mirror, and — measured live on wise.com — the SDK's OWN code then
+# dereferences a property off the config that request was supposed to fill in
+# (`.opt_out_tracking_persistence_type`, read inside the SDK's own minified
+# source, confirmed by grep), throwing with no error boundary catching it.
+# Next.js treats the failed render as a cancelled route and falls back to its
+# own 404 page — the whole homepage replaced by "we lost this page", not a
+# blank frame this time, but the same root cause as a missing chunk: live
+# code depending on a live backend the mirror cannot provide. A neutered
+# token cannot fix code that runs regardless of whether the token is real;
+# only NOT running it can, the same full-removal treatment GTM's own
+# bootstrap already gets above. Matched on the vendor's own filename, which
+# is stable across however the site loads it (a literal <script src>, or —
+# as on wise.com's own homepage — a runtime string built from a CDN host
+# plus a path fragment, invisible to any markup rewrite).
+LIVE_ANALYTICS_SDK = re.compile(r'/mixpanel[-\w.]*\.min\.js(?:[?#]|$)', re.I)
+ANALYTICS_STUB = (
+    b"// swipefile: live analytics SDK stubbed out of this mirror. Its real\n"
+    b"// init depends on a remote endpoint no static mirror can serve; letting\n"
+    b"// it run crashes deep inside the SDK's own code when that dependency\n"
+    b"// never resolves, which is worse than the tracking simply not firing.\n"
+    b"(function(){function noop(){return stub}"
+    b"var stub=new Proxy(noop,{get:function(){return noop},apply:function(){return stub}});"
+    b"if(typeof window!=='undefined'){window.mixpanel=stub}"
+    b"if(typeof module!=='undefined'&&module.exports){module.exports=stub}})();\n"
+)
+# The above stub handles mixpanel-js loaded as a SEPARATE file — but the same
+# library is routinely webpack-bundled straight into a site's own app chunk
+# instead (confirmed live on wise.com: byte-identical across 7 zone bundles,
+# unmodified vendor code, not Wise-authored glue), where no filename exists to
+# intercept. That copy's own `get_config` accessor —
+#   MixpanelLib.prototype.get_config=function(prop_name){return this.config[prop_name]}
+# — throws the instant ANY tracking call (track, track_pageview, a group
+# helper, …) reaches an instance whose async init hasn't set `this.config`
+# yet, which mixpanel-js's own snippet-queue pattern makes easy to hit
+# (queued calls fire once the real script loads, whether or not init actually
+# completes) and a consent-gated init callback that a static mirror's missing
+# CMP can never fire makes near-certain. Confirmed the resulting exception is
+# caught INSIDE React's commit-phase error boundary, never reaching
+# window.onerror/unhandledrejection — RESILIENCE_SHIM above cannot help here,
+# and Next.js reacts by cancelling the in-flight render ("Cancel rendering
+# route", E503) and mounting its own error fallback in its place, replacing
+# real page content with an error screen. `(this.config||{})[prop_name]` is
+# the accessor's own upstream fix shape: identical result whenever config IS
+# set, `undefined` instead of a throw when it isn't — the same tolerance the
+# library will have once its own init finishes, just applied one line early.
+MIXPANEL_GET_CONFIG = re.compile(
+    r"""\.get_config=function\((\w+)\)\{return\s+this(?:\.config|\[['"]config['"]\])\[\1\]\}""")
+
+
+def _harden_get_config(m):
+    p = m.group(1)
+    return f'.get_config=function({p}){{return(this.config||{{}})[{p}]}}'
+# Next.js references its own chunk files two ways this file's other patterns
+# cannot see, both keyed to "static/chunks/..." — a path relative to the site's
+# _next/ root (Next's publicPath/assetPrefix), NOT to whichever file happens to
+# be doing the referencing, so a plain urljoin(base, rel) is wrong whenever the
+# referencing file sits at a different depth than the chunk itself:
+#   1. An async chunk's filename, assembled at runtime from a chunk-id -> hash
+#      map compiled into the entry bundle (webpack-*.js / main-*.js) — a long
+#      ternary chain, one term per chunk: 85566===e?"static/chunks/"+e+"-c4b4…".
+#   2. A route's chunk LIST inside _buildManifest.js — plain quoted strings in
+#      an array literal, e.g. "static/chunks/pages/_error-ac146db….js", never
+#      inside an import()/from/new URL() call REL_SPEC would catch, and this
+#      file sits one directory deeper (_next/static/<buildId>/) than the
+#      webpack bundle does, so this and case 1 are NOT the same directory.
+# Measured live on wise.com: BOTH gaps stacked on the same homepage — a
+# pricing-widget chunk (case 1) and then Next's own error-boundary chunk
+# (case 2, needed only once something else already failed) were each missing
+# in turn, and each failed dynamic import unmounted the ENTIRE hydrated React
+# tree, whiting out a page whose SSR HTML was otherwise fine underneath.
+# next_asset_url() anchors on the '_next/' segment itself rather than walking
+# a fixed number of '..' — the one thing guaranteed stable across both cases
+# and across Next.js layouts, since every chunk path Next emits is relative to
+# that root regardless of how deep the file naming it happens to live.
+WEBPACK_CHUNK_MAP = re.compile(
+    r'(\d+)===(\w+)\?"static/chunks/"\+\2\+"-([0-9a-f]{6,})\.js"')
+STATIC_CHUNK_LITERAL = re.compile(r'"(static/chunks/[\w./-]+\.js)"')
 REL_PATTERNS = (REL_SPEC, CSS_URL, ATTR_URL)
+
+
+def next_asset_url(base, rel):
+    """rel (e.g. 'static/chunks/x.js') resolved against base's own '_next/'
+    root, wherever that root lives — see the block comment above."""
+    idx = base.find('_next/')
+    if idx == -1:
+        return None
+    return base[:idx] + '_next/' + rel
 SKIP_SCHEMES = ('data:', 'blob:', '#', 'mailto:', 'tel:', 'javascript:', 'http://', 'https://', '//')
 IMPORTMAP_RE = re.compile(r'<script[^>]*type=["\']importmap["\'][^>]*>(.*?)</script>', re.S | re.I)
+# A mirror always ships SOME live dependency a bundle assumes will succeed —
+# an analytics SDK's init call, a feature-flag fetch, a personalization
+# service — and a framework whose error handling treats an uncaught client
+# exception as fatal (React/Next unmounting the whole hydrated tree, or
+# routing to a not-found fallback, both measured live on wise.com from two
+# UNRELATED live dependencies in the same session) turns that one dependency
+# into a page that never renders at all. This can't fix the dependency — a
+# static mirror cannot make a live SDK's init succeed — but it can stop one
+# uncaught exception from taking the whole page down with it, which is the
+# actual, generalizable failure mode across all of them. Must run before any
+# other script on the page, so it is injected as the very first thing in
+# <head>, ahead of the framework/vendor bundles it is defending against.
+RESILIENCE_SHIM = (
+    '<script>(function(){'
+    "window.addEventListener('error',function(e){e.stopImmediatePropagation();"
+    'return true;},true);'
+    "window.addEventListener('unhandledrejection',function(e){e.preventDefault();"
+    'e.stopImmediatePropagation();},true);'
+    '})();</script>\n'
+)
 
 
 def parse_importmap(html):
@@ -85,6 +223,20 @@ def parse_importmap(html):
         return {}
 
 
+def safe_urljoin(base, spec):
+    """urljoin, but a spec pulled out of minified JS by regex is not guaranteed
+    to be a URL. A template-literal interpolation like `//${n.value}/x.js`
+    matches REL_SPEC's quote-delimited capture (backtick is a legal quote there
+    for real dynamic imports), and urljoin's bracket-host parser raises
+    ValueError on the stray `${`. One bad match crashing the whole mirror after
+    minutes of fetching is worse than silently dropping that one non-URL.
+    """
+    try:
+        return urljoin(base, spec)
+    except ValueError:
+        return None
+
+
 def resolve_spec(spec, base, importmap):
     """A specifier's real URL: import map first, else relative to base.
 
@@ -99,14 +251,17 @@ def resolve_spec(spec, base, importmap):
                               key=len, reverse=True):
             if spec.startswith(prefix):
                 return importmap[prefix] + spec[len(prefix):]
-    return urljoin(base, spec)
+    return safe_urljoin(base, spec)
 
 
 def truncate_at_extension(url):
     """Cut a greedily-captured URL at its first valid extension, keeping the query.
 
-    Returns None when nothing that looks like an asset is in it.
+    Returns None when nothing that looks like an asset is in it, or when `url`
+    is already None from a spec that failed to resolve (see safe_urljoin).
     """
+    if url is None:
+        return None
     m = EXT_AT.search(url)
     if not m:
         return None
@@ -173,9 +328,17 @@ def harvest(text, base, importmap=None):
         for cand in s.split(','):
             cand = cand.strip().split()[0] if cand.strip() else ''
             if cand:
-                u = truncate_at_extension(urljoin(base, cand.replace('&amp;', '&')))
+                u = truncate_at_extension(safe_urljoin(base, cand.replace('&amp;', '&')))
                 if u:
                     found.add(u)
+    for chunk_id, _var, chunk_hash in WEBPACK_CHUNK_MAP.findall(text):
+        u = next_asset_url(base, f'static/chunks/{chunk_id}-{chunk_hash}.js')
+        if u:
+            found.add(u)
+    for rel in STATIC_CHUNK_LITERAL.findall(text):
+        u = next_asset_url(base, rel)
+        if u:
+            found.add(u)
     return found
 
 
@@ -193,12 +356,31 @@ def cms_siblings(urls):
     return out - set(urls)
 
 
+def fetch_safe(url):
+    """A URL as it should be REQUESTED, distinct from the URL used as the
+    dict key everywhere else in this file.
+
+    A raw space or other unencoded byte in the path — seen live on a CMS that
+    names uploads after their alt text, `United States.svg` — makes urlopen
+    raise InvalidURL before a single byte is sent, dropping the asset outright.
+    Only the path/query get quoted; the original string stays the key used to
+    match and rewrite the same URL as it literally appears in the page markup.
+    """
+    u = urlsplit(url)
+    return urlunsplit((u.scheme, u.netloc, quote(u.path, safe="/%"),
+                       quote(u.query, safe="=&%"), u.fragment))
+
+
 def grab(url, name, outdir):
     """Fetch one asset. An HTML error page written to hero.png is an integrity
     problem, not an asset — reject it here rather than discover it in the diff."""
     dest = os.path.join(outdir, name)
+    if LIVE_ANALYTICS_SDK.search(urlsplit(url).path):
+        with open(dest, 'wb') as f:
+            f.write(ANALYTICS_STUB)
+        return url, name, None
     try:
-        req = Request(url, headers={'User-Agent': UA, 'Accept': ACCEPT})
+        req = Request(fetch_safe(url), headers={'User-Agent': UA, 'Accept': ACCEPT})
         with urlopen(req, timeout=45) as r:
             if r.status != 200:
                 return url, None, f'HTTP {r.status}'
@@ -361,7 +543,8 @@ def main():
     # happens. The report's integrity gate asks for 0 *unexplained* changes,
     # which is only answerable if the explained ones were tallied at the time.
     changes = {'url-relocalisation': 0, 'sri-strip': 0, 'href-inert': 0,
-               'href-wired': 0, 'form-inert': 0, 'stamp': 0}
+               'href-wired': 0, 'form-inert': 0, 'stamp': 0, 'tracker-strip': 0,
+               'sdk-hardened': 0}
 
     def rewrite_urls(text, prefix, count=False):
         """Absolute asset URLs -> local path."""
@@ -404,7 +587,7 @@ def main():
                 parts = stripped.split(None, 1)
                 spec, descriptor = parts[0], (parts[1] if len(parts) > 1 else '')
                 if not spec.startswith(SKIP_SCHEMES):
-                    u = truncate_at_extension(urljoin(base, spec.replace('&amp;', '&')))
+                    u = truncate_at_extension(safe_urljoin(base, spec.replace('&amp;', '&')))
                     if u and u in table:
                         spec = f'{prefix}{table[u]}'
                         changed = True
@@ -437,6 +620,8 @@ def main():
                       r'\1location.origin', body)
         body = rewrite_urls(body, f'/{a.cdn}/')
         body = rewrite_relative(body, url, f'/{a.cdn}/')
+        body, n8 = MIXPANEL_GET_CONFIG.subn(_harden_get_config, body)
+        changes['sdk-hardened'] += n8
         with open(path, 'w', encoding='utf-8') as f:
             f.write(body)
 
@@ -449,7 +634,8 @@ def main():
         pre, href, post = m.group(1), m.group(2), m.group(3)
         if href.startswith('#') or href.startswith(f'{a.cdn}/'):
             return m.group(0)
-        slug = urlmap.get(urljoin(origin + '/', href).split('#')[0].rstrip('/'))
+        joined = safe_urljoin(origin + '/', href)
+        slug = urlmap.get(joined.split('#')[0].rstrip('/')) if joined else None
         if slug:
             mapped += 1
             wired_slugs.add(slug)
@@ -481,12 +667,24 @@ def main():
         h, n1 = re.subn(r'\s+(integrity|crossorigin)=(["\'])[^"\']*\2', '', h)
         h, n2 = re.subn(r'\s+(integrity|crossorigin)(?=[\s>])', '', h)
         changes['sri-strip'] += n1 + n2
+        # A live off-origin request beat every URL-attribute rewrite above,
+        # because it is built by string concatenation at runtime, not present
+        # as a literal URL anywhere in the markup a regex can match.
+        h, n5 = GTM_INLINE.subn(
+            '<!-- tracker-strip: inline Google Tag Manager bootstrap removed '
+            '(built its beacon URL by string concatenation, invisible to '
+            'attribute-level rewriting) -->', h)
+        h, n6 = GTM_NOSCRIPT.subn(
+            '<!-- tracker-strip: GTM no-JS iframe fallback removed -->', h)
+        h, n7 = MIXPANEL_TOKEN.subn(r'\1\2', h)
+        changes['tracker-strip'] += n5 + n6 + n7
         h = re.sub(r'(<a\b[^>]*?href=")([^"]*)(")', relink, h)
         h, n3 = re.subn(r'(<form\b[^>]*?action=")[^"]*(")', r'\1#inert\2', h)
         changes['form-inert'] += n3
         h, n4 = re.subn(r'<head>',
                         f'<head>\n<!-- LOCAL STUDY MIRROR of {host}. Internal links point at\n'
-                        '     mirrored pages; everything else is inert. Do not publish. -->',
+                        '     mirrored pages; everything else is inert. Do not publish. -->\n'
+                        + RESILIENCE_SHIM,
                         h, count=1)
         changes['stamp'] += n4
         bare_hash += len(re.findall(r'href="#"', h))
@@ -525,6 +723,8 @@ def main():
             'origin_404s': buckets['origin_404s'],
             'content_type_mismatches': len(buckets['content_type_mismatches']),
             'failures': {k: v for k, v in buckets.items() if k != 'origin_404s'},
+            'analytics_sdk_stubbed': sum(
+                1 for u in resolved if LIVE_ANALYTICS_SDK.search(urlsplit(u).path)),
         },
         'links': {'wired': mapped, 'inert': inert,
                   'missing_targets': sorted(wired_slugs - set(raw)),

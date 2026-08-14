@@ -647,6 +647,20 @@ On a multi-page crawl, also record the **template taxonomy**: the distinct page
 types seen (service page, case study, landing, listing), what varies between
 instances of one template and what is fixed. One line per template is enough.
 
+**Entries may be drafted by a local model — never accepted on its word.**
+`scripts/local-entry.py` drives an Ollama model from a capture JSON to a
+finished entry, behind two gates: `library-lint.py` (the resolver can read it)
+and `scripts/provenance.py` (every number, hex, curve and date traces to the
+capture — measured necessity: a local model handed a capture invented the
+capture date and dropped every hex and curve while producing perfect
+structure). Failures are fed back into the prompt and retried; only an entry
+that clears both gates lands, and `--write` re-lints the whole library
+afterwards, rolling back byte-for-byte if it fails. A fabricating model costs
+retries, never corruption. The gate's scope is the four token classes —
+numbers, hexes, curves, dates; prose claims (numbers written as words, named
+colours, easing keywords, font or library names) are yours to judge when you
+read the entry, and that division is deliberate.
+
 This step is not optional housekeeping — it is why the skill gets better. The
 library is what separates the next original build from a templated default: when
 asked to *design* rather than replicate, the entries are a shelf of real,
