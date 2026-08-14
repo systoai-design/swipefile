@@ -29,6 +29,14 @@ CHROME_CANDIDATES = [
     '/Applications/Chromium.app/Contents/MacOS/Chromium',
     shutil.which('google-chrome') or '',
     shutil.which('chromium') or '',
+    shutil.which('chrome') or '',
+    # Windows installs Chrome outside PATH, so `which` finds nothing and the
+    # instrument reports "no Chrome found" on a machine that has it. Every
+    # script in this folder that measures anything routes through here.
+    os.path.expandvars(r'%ProgramFiles%\Google\Chrome\Application\chrome.exe'),
+    os.path.expandvars(r'%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe'),
+    os.path.expandvars(r'%LocalAppData%\Google\Chrome\Application\chrome.exe'),
+    os.path.expandvars(r'%ProgramFiles%\Microsoft\Edge\Application\msedge.exe'),
 ]
 
 

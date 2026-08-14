@@ -234,8 +234,14 @@ check('<source srcset> rewritten off the origin path',
       '/v/home/images/' not in page, page[page.find('<source'):page.find('<source')+200])
 check('srcset descriptor (2x) preserved after rewrite',
       re.search(r'srcset="[^"]*cdn/photo_small_2x[^"]*2x', page) is not None, page)
+# Root-absolute by design. build.py rewrites to `/<cdn>/` so a page at any crawl
+# depth resolves through the served site root — that was the fix for the
+# `/../site/cdn/` bug that 404'd every asset on a real build. This assertion
+# pinned the old relative form and went stale behind it. What matters is that
+# the <picture> fallback points at the local asset instead of the origin path,
+# because an unrewritten fallback is what a blank <picture> box is made of.
 check('fallback <img src> for the picture also rewritten',
-      re.search(r'src="/?cdn/photo_large', page) is not None, page)
+      re.search(r'<img src="/?cdn/photo_large\.jpg"', page) is not None, page)
 
 # The harvester was double-quote-only while SRCSET_ATTR accepted both, so a
 # single-quoted srcset was never FETCHED — the rewriter then had nothing local to

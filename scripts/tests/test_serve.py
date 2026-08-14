@@ -21,7 +21,11 @@ open(os.path.join(root, 'face.woff2'), 'wb').write(b'wOF2' + b'\x00' * 32)
 # a Next.js-style async chunk: build.py mirrors it flat into cdn/, but the
 # page's own webpack runtime requests it at the ORIGINAL absolute site path
 os.makedirs(os.path.join(root, 'cdn'), exist_ok=True)
-open(os.path.join(root, 'cdn', '9627638a-fake.js'), 'w').write('export const x=2;\n')
+# Binary mode on purpose. Text mode translates the trailing \n to \r\n on
+# Windows, so the file lands 19 bytes and the byte-for-byte assertion below
+# fails on a fallback that worked perfectly — status 200, right file, wrong
+# length. A served asset is bytes; the fixture has to be written as bytes.
+open(os.path.join(root, 'cdn', '9627638a-fake.js'), 'wb').write(b'export const x=2;\n')
 
 def free_port():
     s = socket.socket(); s.bind(('127.0.0.1', 0)); p = s.getsockname()[1]; s.close(); return p

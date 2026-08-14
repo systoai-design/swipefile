@@ -165,7 +165,8 @@ check("scope.built counts unique files build.py wrote, not the crawler's raw "
 UNMEASURED = setpath(BASE, 'integrity.origin_refs_remaining',
                      'not measured — no browser available')
 GATE_INPUTS = {'build': BUILD_MANIFEST, 'crawl': CRAWL_MANIFEST,
-               'copy': {'pass': True}, 'motion': {'pass': True}}
+               'copy': {'pass': True}, 'motion': {'pass': True},
+               'design': {'pass': True}}
 code, out, data = run(UNMEASURED, files=GATE_INPUTS)
 check('an unmeasured gated metric does not block by default', code == 0, out[-400:])
 check('and is reported UNVERIFIED, not passed',
@@ -188,10 +189,12 @@ check('--strict does not invent a failure — it is still UNVERIFIED, not FAIL',
       data and not data['gates']['failing']
       and status_of(data, 'origin refs remaining') == 'UNVERIFIED', data and data['gates'])
 
-code, out, data = run(BASE)          # no --copy, no --motion supplied
+code, out, data = run(BASE)          # no --copy, --motion or --design supplied
 check('an absent sub-gate is unverified, not assumed clean',
       status_of(data, 'motion gate') == 'UNVERIFIED'
-      and status_of(data, 'content gate') == 'UNVERIFIED', data and data['gates']['failing'])
+      and status_of(data, 'content gate') == 'UNVERIFIED'
+      and status_of(data, 'design gate') == 'UNVERIFIED',
+      data and data['gates']['failing'])
 check('a REPORT.md with unverified gates says so in its headline',
       data and data['gates']['unverified'], data and data['gates'])
 
@@ -312,6 +315,23 @@ code, out, data = run(BASE, files={'build': BUILD_MANIFEST, 'crawl': CRAWL_MANIF
 check('a failing motion gate fails the report', status_of(data, 'motion gate') == 'FAIL')
 check('and its reason is carried into the report',
       data and 'NO prefers-reduced-motion' in data['motion']['failures'][0])
+
+# The design gate is the taste pre-flight's mechanical half. A failing one has
+# to block for the same reason the motion gate does: a still screenshot cannot
+# see a 2.1:1 CTA or a two-line nav, so a pixel score of 99% reads as done over
+# a page that fails its own house rules.
+code, out, data = run(BASE, files={
+    'build': BUILD_MANIFEST, 'crawl': CRAWL_MANIFEST,
+    'copy': {'pass': True}, 'motion': {'pass': True},
+    'design': {'pass': False, 'failures': ['every CTA clears WCAG AA: "Buy" 2.1:1'],
+               'warnings': ['no duplicate CTA intent: contact']}})
+check('a failing design gate fails the report', status_of(data, 'design gate') == 'FAIL')
+check('and the report exits non-zero on it', code != 0, out[-300:])
+check('the design failure is carried, not summarised away',
+      data and '2.1:1' in data['design']['failures'][0], data and data['design'])
+check('design warnings are kept apart from design failures',
+      data and data['design']['warnings'] and not data['gates']['unverified'][:1] == ['design'],
+      data and data['design'])
 
 # ---- link integrity comes from the build, not from a promise
 broken = setpath(BUILD_MANIFEST, 'links',
