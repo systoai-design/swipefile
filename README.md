@@ -42,10 +42,9 @@ the generic answer.
 
 ## See it work
 
-**Match: a local mirror of apple.com, byte-driven rather than eyeballed.** Left
-is the live site. Right is what swipefile built and served from disk: same
+**Match: a local mirror of apple.com, built from bytes.** Left is the live site. Right is what swipefile built and served from disk: same
 markup, same fonts fetched and served locally, same assets, verified against the
-reference with a pixel diff rather than "looks about right."
+reference with a pixel diff, so the claim survives someone checking it.
 
 <p align="center">
   <img src="assets/match-apple.png" alt="apple.com next to a locally mirrored copy served from disk, near-pixel-identical" width="100%">
@@ -65,10 +64,10 @@ instead. That is real behavior, not a claim:
 Both pages measured **zero AI-writing-tell findings** from `copy-gate.py` (no
 promotional filler, no inflated vocabulary, no rule-of-three padding) and shipped
 well under budget, at 9.7KB / 4.0KB and 8.0KB / 2.9KB of gzipped CSS and JS.
-Re-run against the current gate, both still get flagged for a gap worth naming:
+Re-run against the current gate, both still get flagged for one gap:
 neither ships JSON-LD structured data, which the gate now treats as a hard
-failure. That is the gate doing its job on work that predates it, rather than a
-claim smoothed over.
+failure. That is the gate doing its job on work that predates it, and the honest
+way to report it.
 
 ## Built with swipefile
 
@@ -82,21 +81,30 @@ WASD, shopkeepers you can talk to, and one cart shared with the flat catalog.
   <img src="assets/systo-commerce.png" alt="Left: walking the mall concourse past six named storefronts with a minimap and heads-up cart. Right: the in-world directory listing each shop, its owner and its stock with prices." width="100%">
 </p>
 
-Both frames were driven over CDP rather than posed: click Step Inside, hold W to
-walk the concourse, press M for the directory. The directory is the part that
-matters most. Every shop has a named owner (Maya Torres at Northwind, Dev Patel
-at Loop & Loft) and real stock at real prices, with a Guide Me button that walks
-you there. It is a working store wearing a 3D floor, not a demo with a shop
-bolted on.
+Neither frame is posed. Both were driven over CDP: the walkthrough clicks Step
+Inside and holds W down the concourse, then presses M to open the directory. That
+directory is what makes the case. Each shop lists a named owner, Maya Torres at
+Northwind and Dev Patel at Loop & Loft, alongside its actual stock and prices,
+and a Guide Me button that walks the fox over to it.
 
-Worth naming one more detail. The first capture attempt came back as a plain dark
-page reading *"The 3D floor needs WebGL. The shop does not."* because headless
-Chrome had no GPU, so the render was retried with software WebGL through
-ANGLE/SwiftShader. That dark page is the site's real fallback doing its job, with
-the full catalog, cart and checkout still reachable. Building the 3D floor and
-the flat path as one store, rather than shipping the spectacle and hoping every
-visitor can run it, is the kind of decision the gates in this repo exist to keep
-honest.
+The same six shops sell the same things on a flat storefront at
+[/shop.html](https://systo-commerce.vercel.app/shop.html), for anyone who would
+rather just buy a hoodie:
+
+<p align="center">
+  <img src="assets/systo-commerce-classic.png" alt="Left: the classic storefront with category navigation, a promotions bar and a shared bag counter. Right: the product grid with photography, prices and Add to bag buttons." width="100%">
+</p>
+
+The two paths share a catalog, and the screenshots prove it. Lightweight Jacket
+is $189 in the in-world directory and $189 in the flat grid. Classic Hoodie is $99 in both. Soft Knit Sweater is $129 in both. One cart,
+either route.
+
+The fallback deserves a mention too. My first capture came back as a dark page
+reading *"The 3D floor needs WebGL. The shop does not."*, because headless Chrome
+had no GPU, so I re-ran the render with software WebGL through ANGLE/SwiftShader.
+That dark page was the site telling the truth: no 3D floor here, but the catalog,
+the cart and checkout all still work. A visitor on old hardware gets a store, and
+that is the kind of decision the gates in this repo exist to keep honest.
 
 ## The five jobs
 
@@ -106,8 +114,8 @@ One skill, five outcomes, chosen by how you ask:
 |---|---|
 | `swipefile https://stripe.com` (a bare URL) | **Match.** Rebuild it faithfully: full site crawl, working local nav, real fonts and assets served locally, verified to 95% pixel similarity or better before you see it. |
 | `like stripe.com but for my espresso brand, here's my content` | **Adapt.** The reference's *system* (rhythm, motion character, structural logic) with your content and brand. Never mistakable for the reference, and never a generic default either. |
-| `what animations does linear.app use?` | **Audit.** The extraction *is* the answer: plain language plus an implementable spec covering trigger, duration, easing, stagger and scroll offsets, confirmed by probing the page's own runtime rather than grepping bundle comments that lie. |
-| `use linear.app's hero animation on my hero section` | **Transfer.** One measured mechanism, translated into your existing stack and tokens. Near-exact on curve, travel and stagger, and never a second animation library your repo doesn't already have. |
+| `what animations does linear.app use?` | **Audit.** The extraction *is* the answer. Plain language plus an implementable spec covering trigger, duration, easing, stagger and scroll offsets, confirmed by probing the page's own runtime, because bundle comments name libraries the site never loads. |
+| `use linear.app's hero animation on my hero section` | **Transfer.** One measured mechanism, translated into your existing stack and tokens. Near-exact on curve, travel, stagger. Never a second animation library your repo doesn't already have. |
 | `pull the brand kit from stripe.com` | **Brand.** Palette with usage frequency (a colour used 40 times is structural, twice is decoration), type system, spacing rhythm, motion character. Or generate a new kit for your own subject from everything the library has learned. |
 
 Every library entry is also **callable by name** once captured. `reference:
@@ -126,7 +134,7 @@ Not vibes at any step. Concretely:
    measured silently under-reporting motion: one returned **0 animations** on a
    page that had 10, because scroll-triggered reveals never fire without a real
    viewport. Six artifacts get pulled: markup, tokens (sampled from computed
-   styles rather than guessed from source CSS), the full motion signature,
+   styles, never guessed from source CSS), the full motion signature,
    interaction states, responsive behavior, and the raw stylesheets.
 2. **The motion spec is an artifact you must hold, not a rule you are trusted to
    remember.** `scripts/motion-spec.py` either hands you a per-animation mapping
@@ -136,7 +144,7 @@ Not vibes at any step. Concretely:
    times in one session. Prose does not stop anything. An artifact you cannot
    build without does.
 3. **Build:** tokens first, motion last, `prefers-reduced-motion` always.
-4. **Diff.** Geometry, pixels, motion and fonts each get a dedicated instrument
+4. **Diff.** Geometry, pixels, motion, fonts: each gets its own instrument
    (below), never a single blended "looks close" number. A screenshot never
    stands in for a motion check, because a screenshot cannot see that an
    animation is missing. A build can score 99% pixel-identical and be completely
@@ -149,13 +157,13 @@ Not vibes at any step. Concretely:
 
 Every one of these exists because the equivalent rule, written as prose, was
 skipped. Correctly quoted back, and skipped anyway. So each is an instrument that
-measures and **refuses**, rather than a checklist an agent grades itself against.
+measures and **refuses**. None of them is a checklist an agent grades itself against.
 
 | Command | Refuses to let through |
 |---|---|
 | `motion-spec.py --name X` | building motion from a library entry that never actually measured a per-animation mapping |
 | `motion-diff.py ref.json build.json` | a build whose motion does not match the reference on durations, easing or stagger, weighted by real usage so decoration-tier values do not cause false alarms |
-| `font-gate.js` (run on both sides, compared) | a silently fallen-back font. Computed `fontFamily` lies while a fallback renders, so this is a canvas-width A/B rather than a style read |
+| `font-gate.js` (run on both sides, compared) | a silently fallen-back font. Computed `fontFamily` lies while a fallback renders, so this is a canvas-width A/B, never a style read |
 | `copy-gate.py page.html` | AI-writing tells across 12 categories cross-checked against the `humanizer` skill, missing SEO essentials, and absent JSON-LD (measured absent on 2 of 2 real builds until this existed) |
 | `design-gate.py <url>` | the mechanical half of a taste pre-flight: oscillating theme sections, hero padding, banned default palettes, WCAG contrast on every CTA. Running live below |
 | `library-lint.py` | a library entry the resolver would silently mis-read. An unanchored regex once promoted a `partial` entry to buildable by matching the wrong line |
@@ -227,7 +235,7 @@ motion fidelity:
 |---|---|---|
 | `spec` | full per-animation mapping | yes |
 | `partial` | real values, no per-animation map | not yet, one cheap re-capture pass away |
-| `signature-only` | ranked curves and a character sentence | no, that is a vocabulary rather than a mapping |
+| `signature-only` | ranked curves and a character sentence | no, that is a vocabulary and not a mapping |
 | `none` | motion exists but was never measured | no |
 
 Every entry records the *system* and never the content: palettes, type ratios,
