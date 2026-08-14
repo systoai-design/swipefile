@@ -70,6 +70,24 @@ neither ships JSON-LD structured data, which the gate now treats as a hard
 failure. That is the gate doing its job on work that predates it, rather than a
 claim smoothed over.
 
+## Built with swipefile
+
+**[Systo Commerce](https://systo-commerce.vercel.app)** is a storefront you walk
+through instead of scroll: six shops under one skylight, a fox you steer with
+WASD, shopkeepers you can talk to, and one cart shared with the flat catalog.
+
+<p align="center">
+  <img src="assets/systo-commerce.png" alt="Systo Commerce, a walkable 3D shopping mall rendered in the browser, with a fox avatar, six storefronts, a minimap and a heads-up cart" width="100%">
+</p>
+
+It is worth showing here for a reason beyond the render. The screenshot above
+took two attempts: the first came back as a plain dark page reading *"The 3D
+floor needs WebGL. The shop does not."* because headless Chrome had no GPU. That
+is the site's real no-WebGL fallback doing its job, with the full catalog, cart
+and checkout still reachable. Building the 3D floor and the flat path as one
+store, rather than shipping the spectacle and hoping every visitor can run it, is
+the kind of decision the gates in this repo are meant to keep honest.
+
 ## The five jobs
 
 One skill, five outcomes, chosen by how you ask:
