@@ -171,7 +171,7 @@ def scope_block(crawl, measured, single_page):
             'sitemap_only': [], 'crawl_only': [], 'unlisted': [], 'excluded': []}
 
 
-def assemble(a, crawl, build, copy, motion, measured):
+def assemble(a, crawl, build, copy, motion, design, measured):
     # MISSING is a sentinel for gate logic and must never reach the report
     # itself — an unserializable object here truncates report.json halfway
     # through, which is a worse failure than the missing number it stood for.
@@ -243,6 +243,14 @@ def assemble(a, crawl, build, copy, motion, measured):
                             ('fail' if copy else 'unverified'),
                     'failures': (copy or {}).get('failures', []),
                     'warnings': (copy or {}).get('warnings', [])},
+        # The taste pre-flight's mechanical half. Its own judgement half is not
+        # in here and must not be inferred from it — see references/taste.md.
+        'design': {'gate': 'pass' if (design or {}).get('pass') else
+                           ('fail' if design else 'unverified'),
+                   'failures': (design or {}).get('failures', []),
+                   'warnings': (design or {}).get('warnings', []),
+                   'unverified_checks': (design or {}).get('unverified', []),
+                   'coverage': (design or {}).get('coverage')},
         'placeholder_content': m('placeholder_content'),
         'honesty': {'excluded': m('honesty.excluded'), 'unresolved': m('honesty.unresolved')},
     }
@@ -370,7 +378,9 @@ def gates(r):
     problems = dig(r, 'integrity.assets.problems')
     gate('asset integrity problems = 0', problems, problems == 0, f'{problems} problems')
 
-    for name, key in (('motion gate: 0 failures', 'motion'), ('content gate: 0 failures', 'content')):
+    for name, key in (('motion gate: 0 failures', 'motion'),
+                      ('content gate: 0 failures', 'content'),
+                      ('design gate: 0 failures', 'design')):
         status = dig(r, f'{key}.gate')
         out.append({'gate': name,
                     'status': {'pass': 'pass', 'fail': 'FAIL'}.get(status, 'UNVERIFIED'),
@@ -438,6 +448,9 @@ def render(r, g, strict=False):
          (f" — {'; '.join(r['motion']['failures'])}" if r['motion']['failures'] else '')),
         ('Content', 'copy-gate.py', r['content']['gate'] +
          (f" — {'; '.join(r['content']['failures'])}" if r['content']['failures'] else '')),
+        ('Design', 'design-gate.py', r['design']['gate'] +
+         (f" — {'; '.join(r['design']['failures'])}" if r['design']['failures'] else '')
+         + (f" ({len(r['design']['warnings'])} warning(s))" if r['design']['warnings'] else '')),
         ('Honesty', 'Excluded', str(r['honesty']['excluded'])),
         ('Honesty', 'Unresolved', str(r['honesty']['unresolved'])),
     ]
@@ -483,6 +496,8 @@ def main():
     ap.add_argument('--build', help='build-manifest.json from build.py')
     ap.add_argument('--copy', help='output of copy-gate.py --json')
     ap.add_argument('--motion', help='output of motion-diff.py --json')
+    ap.add_argument('--design', help='output of design-gate.py --out — the mechanical '
+                                     'half of the taste pre-flight')
     ap.add_argument('--measured', help='measurements.json — see --init')
     ap.add_argument('--single-page', action='store_true',
                     help='declare scope as one page (no crawl); a claim, not a default')
@@ -515,7 +530,8 @@ def main():
         sys.exit(2)
 
     r = assemble(a, load(a.crawl, '--crawl'), load(a.build, '--build'),
-                 load(a.copy, '--copy'), load(a.motion, '--motion'), measured)
+                 load(a.copy, '--copy'), load(a.motion, '--motion'),
+                 load(a.design, '--design'), measured)
     g = gates(r)
     failed, unverified, _ = verdict(g, a.strict)
     blocking = failed + (unverified if a.strict else [])

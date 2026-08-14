@@ -31,6 +31,7 @@ SUITES = [
     ('font', 'test_font.py', 'canvas A/B tells a real face from a silent fallback'),
     ('copy', 'test_copy.py', 'AI-writing tells, SEO essentials, JSON-LD structured data'),
     ('report', 'test_report.py', 'the replication gates; unverified is never passed'),
+    ('design', 'test_design.py', 'the taste pre-flight, measured: contrast, eyebrows, locks'),
     ('package', 'test_package.py', 'the distributable carries no captured entry or artifact'),
 ]
 

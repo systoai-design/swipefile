@@ -42,7 +42,7 @@ ALLOW = (
     # legitimately carries six cubic-beziers), so a new doc costs one reviewed
     # line here and is named in the NOT SHIPPED warning until it gets one.
     ('references', ('adaptation.md', 'capture.md', 'copy.md', 'crawl.md',
-                    'mirror.md', 'motion.md', 'report.md', 'verify.md')),
+                    'mirror.md', 'motion.md', 'report.md', 'taste.md', 'verify.md')),
     ('scripts', ('*.py', '*.js')),
     ('scripts/tests', ('*.py',)),
     ('library', ('TEMPLATE.md',)),          # INDEX.md is regenerated, never copied
