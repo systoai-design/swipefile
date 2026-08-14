@@ -158,7 +158,10 @@ def harvest(text, base, importmap=None):
             rel = m.group(3).strip().replace('&amp;', '&')
             if not rel or rel.startswith(SKIP_SCHEMES[:6]):
                 continue
-            u = truncate_at_extension(resolve_spec(rel, base, importmap))
+            u = resolve_spec(rel, base, importmap)
+            if not u or "${i.value}" in u:
+                continue
+            u = truncate_at_extension(u)
             if u:
                 found.add(u)
     # Both quote styles, matching SRCSET_ATTR above. Double-quote-only here meant
