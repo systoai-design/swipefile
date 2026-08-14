@@ -76,17 +76,27 @@ claim smoothed over.
 through instead of scroll: six shops under one skylight, a fox you steer with
 WASD, shopkeepers you can talk to, and one cart shared with the flat catalog.
 
+**Walk it yourself: [systo-commerce.vercel.app](https://systo-commerce.vercel.app)**
+
 <p align="center">
-  <img src="assets/systo-commerce.png" alt="Systo Commerce, a walkable 3D shopping mall rendered in the browser, with a fox avatar, six storefronts, a minimap and a heads-up cart" width="100%">
+  <img src="assets/systo-commerce.png" alt="Left: walking the mall concourse past six named storefronts with a minimap and heads-up cart. Right: the in-world directory listing each shop, its owner and its stock with prices." width="100%">
 </p>
 
-It is worth showing here for a reason beyond the render. The screenshot above
-took two attempts: the first came back as a plain dark page reading *"The 3D
-floor needs WebGL. The shop does not."* because headless Chrome had no GPU. That
-is the site's real no-WebGL fallback doing its job, with the full catalog, cart
-and checkout still reachable. Building the 3D floor and the flat path as one
-store, rather than shipping the spectacle and hoping every visitor can run it, is
-the kind of decision the gates in this repo are meant to keep honest.
+Both frames were driven over CDP rather than posed: click Step Inside, hold W to
+walk the concourse, press M for the directory. The directory is the part that
+matters most. Every shop has a named owner (Maya Torres at Northwind, Dev Patel
+at Loop & Loft) and real stock at real prices, with a Guide Me button that walks
+you there. It is a working store wearing a 3D floor, not a demo with a shop
+bolted on.
+
+Worth naming one more detail. The first capture attempt came back as a plain dark
+page reading *"The 3D floor needs WebGL. The shop does not."* because headless
+Chrome had no GPU, so the render was retried with software WebGL through
+ANGLE/SwiftShader. That dark page is the site's real fallback doing its job, with
+the full catalog, cart and checkout still reachable. Building the 3D floor and
+the flat path as one store, rather than shipping the spectacle and hoping every
+visitor can run it, is the kind of decision the gates in this repo exist to keep
+honest.
 
 ## The five jobs
 
@@ -314,6 +324,9 @@ that rule got skipped at least once.
 `systo-ai.com` is itself in the library, captured as the content source of a
 two-URL Adapt, so the tool has been pointed at its author's own work as well as
 everyone else's.
+
+- Systo: [www.systo-ai.com](https://www.systo-ai.com)
+- Systo Commerce: [systo-commerce.vercel.app](https://systo-commerce.vercel.app)
 
 ---
 
