@@ -42,7 +42,8 @@ the generic answer.
 
 ## See it work
 
-**Match: a local mirror of apple.com, built from bytes.** Left is the live site. Right is what swipefile built and served from disk: same
+**Match: a local mirror of apple.com, built from bytes.** Left is the live
+site. Right is what swipefile built and served from disk: same
 markup, same fonts fetched and served locally, same assets, verified against the
 reference with a pixel diff, so the claim survives someone checking it.
 
@@ -61,13 +62,11 @@ instead. That is real behavior, not a claim:
   <img src="assets/adapt-vs-original.png" alt="two landing pages for the same brief, one built from a named library reference and one from scratch, neither using the generic AI-default look" width="100%">
 </p>
 
-Both pages measured **zero AI-writing-tell findings** from `copy-gate.py` (no
-promotional filler, no inflated vocabulary, no rule-of-three padding) and shipped
-well under budget, at 9.7KB / 4.0KB and 8.0KB / 2.9KB of gzipped CSS and JS.
-Re-run against the current gate, both still get flagged for one gap:
-neither ships JSON-LD structured data, which the gate now treats as a hard
-failure. That is the gate doing its job on work that predates it, and the honest
-way to report it.
+Both pages carry **zero AI-writing-tell findings** from `copy-gate.py`, with no
+promotional filler, no inflated vocabulary, no rule-of-three padding, and both
+ship under budget at 9.7KB / 4.0KB and 8.0KB / 2.9KB of gzipped CSS and JS.
+Neither ships JSON-LD, so both fail the gate's structured-data check, which is
+what a gate is for.
 
 ## Built with swipefile
 
@@ -81,11 +80,9 @@ WASD, shopkeepers you can talk to, and one cart shared with the flat catalog.
   <img src="assets/systo-commerce.png" alt="Left: walking the mall concourse past six named storefronts with a minimap and heads-up cart. Right: the in-world directory listing each shop, its owner and its stock with prices." width="100%">
 </p>
 
-Neither frame is posed. Both were driven over CDP: the walkthrough clicks Step
-Inside and holds W down the concourse, then presses M to open the directory. That
-directory is what makes the case. Each shop lists a named owner, Maya Torres at
-Northwind and Dev Patel at Loop & Loft, alongside its actual stock and prices,
-and a Guide Me button that walks the fox over to it.
+Press M anywhere on the floor and the directory opens. Each shop lists a named
+owner, Maya Torres at Northwind and Dev Patel at Loop & Loft, alongside its
+actual stock and prices, with a Guide Me button that walks the fox over to it.
 
 The same six shops sell the same things on a flat storefront at
 [/shop.html](https://systo-commerce.vercel.app/shop.html), for anyone who would
@@ -95,16 +92,14 @@ rather just buy a hoodie:
   <img src="assets/systo-commerce-classic.png" alt="Left: the classic storefront with category navigation, a promotions bar and a shared bag counter. Right: the product grid with photography, prices and Add to bag buttons." width="100%">
 </p>
 
-The two paths share a catalog, and the screenshots prove it. Lightweight Jacket
-is $189 in the in-world directory and $189 in the flat grid. Classic Hoodie is $99 in both. Soft Knit Sweater is $129 in both. One cart,
-either route.
+One catalog serves both paths. Lightweight Jacket is $189 in the in-world
+directory and $189 in the flat grid, Classic Hoodie is $99 in both, Soft Knit
+Sweater is $129 in both. One cart, either route.
 
-The fallback deserves a mention too. My first capture came back as a dark page
-reading *"The 3D floor needs WebGL. The shop does not."*, because headless Chrome
-had no GPU, so I re-ran the render with software WebGL through ANGLE/SwiftShader.
-That dark page was the site telling the truth: no 3D floor here, but the catalog,
-the cart and checkout all still work. A visitor on old hardware gets a store, and
-that is the kind of decision the gates in this repo exist to keep honest.
+A browser without WebGL gets the third path: the floor drops away and the store
+stays, with the full catalog, the cart and checkout all still working. Shipping
+the 3D floor and the flat store as one shop, so the spectacle never becomes the
+requirement, is the kind of decision the gates in this repo exist to protect.
 
 ## The five jobs
 
@@ -164,7 +159,7 @@ measures and **refuses**. None of them is a checklist an agent grades itself aga
 | `motion-spec.py --name X` | building motion from a library entry that never actually measured a per-animation mapping |
 | `motion-diff.py ref.json build.json` | a build whose motion does not match the reference on durations, easing or stagger, weighted by real usage so decoration-tier values do not cause false alarms |
 | `font-gate.js` (run on both sides, compared) | a silently fallen-back font. Computed `fontFamily` lies while a fallback renders, so this is a canvas-width A/B, never a style read |
-| `copy-gate.py page.html` | AI-writing tells across 12 categories cross-checked against the `humanizer` skill, missing SEO essentials, and absent JSON-LD (measured absent on 2 of 2 real builds until this existed) |
+| `copy-gate.py page.html` | AI-writing tells across 12 categories cross-checked against the `humanizer` skill, a phrase the writer leans on, missing SEO essentials, and absent JSON-LD (measured absent on 2 of 2 real builds until this existed) |
 | `design-gate.py <url>` | the mechanical half of a taste pre-flight: oscillating theme sections, hero padding, banned default palettes, WCAG contrast on every CTA. Running live below |
 | `library-lint.py` | a library entry the resolver would silently mis-read. An unanchored regex once promoted a `partial` entry to buildable by matching the wrong line |
 | `provenance.py entry.md capture.json` | a library entry asserting a number, hex or curve the capture never actually measured |

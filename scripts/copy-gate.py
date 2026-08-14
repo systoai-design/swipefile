@@ -67,6 +67,89 @@ TELLS = [
 ]
 
 
+# Two tiers, because "repeated phrase" on its own is not a finding.
+#
+# GLUE is structural English. Any phrase built only from these ("of the", "it is
+# a") repeats in every document ever written and says nothing about the writer.
+GLUE = {
+    'a', 'an', 'and', 'as', 'at', 'be', 'by', 'for', 'from', 'in', 'is', 'it',
+    'of', 'on', 'or', 'that', 'the', 'to', 'was', 'were', 'with',
+}
+# FUNCTION words carry no subject matter. A phrase made mostly of these is
+# connective tissue, so leaning on one is a habit. A phrase made of content
+# words is the page's topic, and repeating THAT is what a page is supposed to do.
+FUNCTION = GLUE | {
+    'about', 'after', 'again', 'against', 'all', 'also', 'any', 'because',
+    'been', 'before', 'being', 'between', 'both', 'but', 'can', 'do', 'does',
+    'each', 'even', 'every', 'further', 'had', 'has', 'have', 'her', 'here',
+    'him', 'his', 'how', 'if', 'into', 'its', 'just', 'me', 'more', 'most',
+    'much', 'my', 'no', 'not', 'now', 'off', 'once', 'one', 'only', 'other',
+    'our', 'out', 'over', 'own', 'rather', 'same', 'she', 'should', 'since',
+    'so', 'some', 'still', 'such', 'than', 'their', 'them', 'then', 'there',
+    'these', 'they', 'this', 'those', 'through', 'too', 'under', 'up', 'very',
+    'via', 'we', 'well', 'what', 'when', 'where', 'which', 'while', 'who',
+    'why', 'will', 'without', 'would', 'you', 'your',
+}
+WORD_RE = re.compile(r"[a-z0-9']+")
+
+
+def repeated_phrases(text, rate=3.0, floor=5, min_words=150, sizes=(4, 3, 2), top=3):
+    """A phrase the writer leans on. Habit, which no other check here can see.
+
+    TELLS catches known vocabulary and known shapes. It cannot catch a phrase
+    that is unremarkable once and tiring at ten, because the offending phrase is
+    different for every writer. Measured on this repo's own README: `rather than`
+    appeared 10 times in 1873 words, every other check passed it clean, and it
+    had only got there because the author was avoiding em dashes and reached for
+    the same replacement each time. One tic swapped for another.
+
+    Only function-word-heavy phrases count, and pure glue is dropped first. A
+    storefront repeating its brand, its category names or its `Add to bag` button
+    is doing its job; flagging that is the crying-wolf failure this file keeps
+    paying for. `rather than` is two function words carrying no subject matter,
+    so ten of them is the writer, not the topic.
+
+    This WARNS and never fails, for two reasons. Deliberate repetition is a real
+    device, and specification prose legitimately trips it: `does not` and `is
+    not` are the vocabulary of a rules document, the way `Add to bag` is the
+    vocabulary of a shop. Both appear in this folder's own references at counts
+    this check reports. Tuning the threshold until they went quiet also lost the
+    real `rather than` tic, so the threshold keeps the true positive and the
+    finding stays advisory. Read it, decide, move on.
+
+    Returns [(phrase, count), ...], worst first, sub-phrases of an
+    already-reported hit suppressed so one tic is reported once.
+    """
+    words = WORD_RE.findall(text.lower())
+    if len(words) < min_words:
+        return []
+    budget = max(floor, round(rate * len(words) / 1000))
+
+    kept = []
+    for n in sorted(sizes, reverse=True):
+        counts = {}
+        # At most one content word per three. A two-word phrase must be pure
+        # connective tissue to qualify, because `the library` and `a month` are
+        # an article plus the subject matter, and a page is allowed to be about
+        # something. `rather than` has no subject matter at all.
+        allowed_content = n // 3
+        for i in range(len(words) - n + 1):
+            gram = words[i:i + n]
+            if all(w in GLUE for w in gram):
+                continue
+            if sum(1 for w in gram if w not in FUNCTION) > allowed_content:
+                continue
+            phrase = ' '.join(gram)
+            counts[phrase] = counts.get(phrase, 0) + 1
+        for phrase, c in sorted(counts.items(), key=lambda kv: -kv[1]):
+            if c <= budget:
+                continue
+            if any(phrase in longer for longer, _ in kept):
+                continue
+            kept.append((phrase, c))
+    return sorted(kept, key=lambda kv: -kv[1])[:top]
+
+
 def staccato_runs(text, max_words=5, run=3):
     """humanizer 31: a run of very short sentences manufacturing drama.
 
@@ -113,6 +196,7 @@ def main():
     words = text.split()
     n = len(words) or 1
     fails, warns, notes = [], [], []
+    repeats = []
 
     # ---------- prose ----------
     hits = {}
@@ -135,6 +219,13 @@ def main():
             fails.append(f'{label}: {count} occurrences')
         if hits:
             fails.append('Load the `humanizer` skill and fix these; it holds the rewrite guidance.')
+
+        # A phrase the writer leans on. Not in TELLS because the offending
+        # phrase is different for every writer, so it cannot be a word list.
+        repeats = repeated_phrases(text)
+        for phrase, count in repeats:
+            warns.append(f'repetition: "{phrase}" x{count}. A crutch phrase, or the '
+                         'subject matter saying itself; read it and decide.')
 
     # ---------- SEO ----------
     title = attr(doc, r'<title[^>]*>(.*?)</title>')
@@ -196,6 +287,7 @@ def main():
     ok = not fails
     if a.json:
         print(json.dumps({'pass': ok, 'file': a.file, 'words': n, 'proseHits': hits,
+                          'repeatedPhrases': [{'phrase': p, 'count': c} for p, c in repeats],
                           'failures': fails, 'warnings': warns, 'notes': notes,
                           'seo': {'title': title, 'descriptionLen': len(desc or ''),
                                   'h1': len(h1s), 'og': og, 'canonical': bool(canon)},
