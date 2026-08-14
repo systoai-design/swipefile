@@ -44,6 +44,40 @@ MODERN = HEAD + (
     'but a conversation. Quality becomes a trap when you chase it.</p>'
     '<img src="a.jpg" alt="x"></body></html>')
 
+
+# 200+ words leaning on one connective phrase. The tic, not the topic.
+TIC = HEAD + (
+    '<h1>Meridian Coffee Roasters</h1>'
+    '<p>We buy single lots rather than blends. We cup on Tuesday rather than Friday, '
+    'and we ship on Thursday rather than the following week. The roast log is public '
+    'rather than hidden, because a number you can check is worth more than a promise. '
+    'Batch 0412 charged at 195C and dropped at 208C, measured rather than estimated. '
+    'The tasting room opens Wednesday rather than Monday, and closes at two rather than '
+    'five. Subscriptions start at 250 grams rather than a kilo, so a first order is a '
+    'trial rather than a commitment. We roast to order rather than to stock, we grind '
+    'on request rather than in advance, and we price by weight rather than by bag. '
+    'Every lot is named for its farm rather than its region, which is slower to explain '
+    'but easier to verify. The cupping scores are posted rather than summarised. '
+    'We answer the phone rather than a form, and we deliver by bike rather than by van '
+    'wherever the ride is under four miles from the roastery on Division.</p>'
+    '<img src="a.jpg" alt="Roast log"></body></html>')
+
+# Same length, repeating its BRAND and PRODUCT names. Legitimate: that is the topic.
+TOPIC = HEAD + (
+    '<h1>Meridian Coffee Roasters</h1>'
+    '<p>Meridian roasts single lots in southeast Portland. The Meridian subscription '
+    'ships every two weeks, and the Meridian tasting room is open Wednesday to Sunday. '
+    'Our Chelbesa lot is a washed Ethiopian coffee at $22 for 250 grams. The Chelbesa '
+    'is floral and bright. Our Huila lot is a Colombian coffee at $19 for 250 grams, '
+    'and the Huila is heavier, with cocoa and plum. Add to bag, or add to bag from the '
+    'subscription page. Add to bag works the same on every product. Batch 0412 charged '
+    'at 195C, hit first crack at 9:05, and dropped at 208C after 11 minutes. Batch 0413 '
+    'charged at 197C and dropped at 209C. Every batch is logged, every log is public, '
+    'and every bag ships with the roast curve it was roasted on. The roastery is at '
+    '1841 SE Division, open from seven in the morning until two in the afternoon, and '
+    'the roastery phone is answered by whoever is closest to it.</p>'
+    '<img src="a.jpg" alt="Roast log"></body></html>')
+
 NO_SEO = ('<!doctype html><html><head><meta charset="utf-8"></head><body>'
           '<h1>A</h1><h1>B</h1><p>Words here about nothing in particular at all.</p>'
           '<img src="a.jpg"></body></html>')
@@ -89,6 +123,20 @@ code, out = run(write('modern.html', MODERN))
 check('modern-tell page fails', code != 0)
 for cat in ('staccato drama', 'rhetorical opener', 'aphorism formula'):
     check(f'catches: {cat}', cat in out, out[-400:])
+
+# ---- repetition: the writer's crutch, not the page's subject
+code, out = run(write('tic.html', TIC))
+check('catches a crutch phrase repeated across the page',
+      'repetition' in out and 'rather than' in out, out[-500:])
+check('repetition only warns, never fails the gate',
+      not any(l.startswith('  FAIL') and 'repetition' in l for l in out.splitlines()), out[-400:])
+
+code, out = run(write('topic.html', TOPIC))
+check('does NOT fire on a page repeating its brand and products',
+      'repetition' not in out, out[-500:])
+
+code, out = run(write('tic2.html', TIC), '--match')
+check('--match skips the repetition check too', 'repetition' not in out, out[-300:])
 
 # ---- structural SEO failures
 code, out = run(write('noseo.html', NO_SEO))
