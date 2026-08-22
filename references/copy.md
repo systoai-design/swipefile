@@ -39,7 +39,20 @@ and gets checked with the rest.
 | Adapt (brief) | Newly written for the user's subject | Yes | Yes |
 | Adapt (two-URL) | The user's own, plus anything new you write | Yes, on what you wrote | Yes |
 | Transfer | Whatever the user's page already says | Untouched unless they ask | Their page, their call |
-| Brand / from-scratch | Newly written | Yes | Yes |
+| Brand / from-scratch, no copy supplied | Newly written | Yes | Yes |
+| Brand / from-scratch, **copy doc supplied** | The user's own, section by section | Yes, only on what you wrote to fill a gap | Yes, on the whole page |
+
+**A supplied copy document is not the same case as "newly written," even on a
+from-scratch build with no second URL to crawl.** `design-intake`'s copy field
+is exactly this: a doc, a PDF, or pasted text the user wants used verbatim, not
+a brief to write from. Copy that arrived this way is theirs — capture it
+section by section the same way a two-URL Adapt captures the user's own site,
+and run it through `humanizer` / `copy-gate.py` only for whatever you had to
+write to bridge a gap the document left (a section they didn't cover, a form's
+confirmation microcopy). Running their supplied sentences back through the
+prose gate as if you authored them is the same category of error as rewriting a
+Match — it is not your sentence to correct. Where the document leaves a section
+unwritten, say so and treat only that section as newly written.
 
 The failure this table prevents: a Match gets "helpfully" reworded on the way
 past, and an exactly verifiable build becomes an unverifiable one. Nobody notices

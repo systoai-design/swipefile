@@ -192,13 +192,149 @@ measured at 1440:
 | ±3 | ±21° | 0.776 | ±400 | +97 | 1 |
 
 Rotation is a clean 7°/step; scale and offset are **not** on any formula —
-transcribe them. **No shadow, no transition, no animation, no hover state**:
-it is a static fan, and its depth comes entirely from scale + z-order +
-overlap. Section heading is the site's split register (Mona Sans 32/700
+transcribe them. Section heading is the site's split register (Mona Sans 32/700
 uppercase + the serif line), with the deck bleeding below the fold.
 
 Verified reconstruction check: rotating the base box 21° at scale 0.776
 yields exactly the measured 323×412 outer bounding box.
+
+> **⚠ 2026-08-17 CORRECTION — this addendum was wrong about motion.** It
+> originally read "No shadow, no transition, no animation, no hover state: it
+> is a static fan." **The deck has a scroll-triggered entrance AND a rich
+> per-card hover**, both GSAP. The error came from measuring only the settled
+> end-state and inferring "static" from a still. See the section below, which
+> is read from the site's own bundle source and supersedes that sentence.
+> Standing lesson: **never conclude "no motion" from geometry alone** — a
+> settled end-state is indistinguishable from a static layout. Confirm against
+> the bundle or a runtime tween list before writing "no animation" into an entry.
+
+---
+
+# Addendum 2 — the socials deck's REAL motion (2026-08-17, source-read)
+
+**Motion fidelity for this component: `spec`.** Not measured off the DOM —
+extracted from `lando.itsoffbrand.io/dev-js/lando.OFF+BRAND.gold-android-fix-03.js`
+(search `data-social-callout`, ~offset 1.24MB). This is the authoritative version.
+
+**Correction to the entry's Stack section too:** it says "No GSAP global". True
+for `window.gsap`, but **`window.gsapVersions` reports `["3.13.0"]`** and
+`window.themeScrollTriggers` exists. GSAP + ScrollTrigger are bundled and used
+heavily. Probe `gsapVersions`/`themeScrollTriggers`, not just `gsap`.
+
+## Geometry is in `rem`, and the root font-size is fluid
+
+The single most important correction: the table above is px-at-1440. The source
+stores **rem**, against this site's fluid root (`clamp(992,100vw,1920)/1728*16`;
+11.8519px at a 1280 viewport). So the whole fan scales fluidly with the
+viewport and stops at the clamps. Porting the px values pins it to one width.
+
+Two arrays, switched at `innerWidth <= 991` (x roughly halves; scale/rotation/y
+are identical):
+
+| i | scale | rotation | x desktop | x mobile | y | zIndex |
+|---|---|---|---|---|---|---|
+| 0 | 0.7756 | −21° | −30rem | −15rem | 7.3rem | 1 |
+| 1 | 0.8498 | −14° | −22rem | −11rem | 4rem | 2 |
+| 2 | 0.9346 | −7° | −11rem | −6rem | 1.3rem | 3 |
+| 3 | 1 | 0° | 0 | 0 | 0 | 10 |
+| 4 | 0.9346 | 7° | 11rem | 6rem | 1.3rem | 3 |
+| 5 | 0.8498 | 14° | 22rem | 11rem | 4rem | 2 |
+| 6 | 0.7756 | 21° | 30rem | 15rem | 7.3rem | 1 |
+
+`transformOrigin: "center center"` (**not** a top-biased origin).
+Note desktop x deltas are 11/11/8, not linear.
+
+## Entrance (scroll-triggered, fires once)
+
+```js
+gsap.set(cards, {x:0, y:"10rem", scale:1, rotation:0,
+                 transformOrigin:"center center", opacity:1})
+cards.forEach((c,i) => c.style.zIndex = arr[i].zIndex)
+
+gsap.timeline({scrollTrigger:{trigger:wrap, start:"top 90%", once:true},
+               onComplete:installHover})
+  .to(cards, {y:0, duration:0.8, ease:"power2.out",
+              stagger:{amount:0.5, from:"end"}})
+  .to(cards, {x:i=>arr[i].x+"rem", y:i=>arr[i].y+"rem",
+              scale:i=>arr[i].scale, rotation:i=>arr[i].rotation,
+              duration:1.2, ease:"elastic.out(1, 0.75)",
+              stagger:{amount:0.2, from:"center"}}, "-=0.4")
+```
+
+A closed stack rises 10rem (0.8s `power2.out`, 0.5s stagger **from "end"**),
+then **overlapping by 0.4s** fans open (1.2s `elastic.out(1,0.75)`, 0.2s stagger
+**from "center"**). `opacity` is 1 throughout: there is no fade, only travel.
+
+## Hover — the part that was missing entirely
+
+Installed only `onComplete` of the entrance. Per-card `mouseenter`/`mouseleave`
+plus a container-level `mouseleave`. `E` = centre index = `floor(n/2)`.
+
+For hovered index `N`, each card `z` at distance `T = |z − N|`:
+
+```
+h = (z − E)/E          // −1..1 by fan position
+p = 1 − |h|            // 1 at centre, 0 at the outermost card
+c = 1 + 0.2·max(0, 3−T)  // 1.6 / 1.4 / 1.2 / 1.0 for T = 0/1/2/≥3
+```
+
+- **hovered** (`z === N`): `y = base.y − 2.5rem`, `x = base.x` (unchanged),
+  `scale = base.scale × 1.08`, **`rotation = base.rotation` (unchanged)**
+- **before** (`z < N`): `x = base.x − 8·p·c rem`, `rotation = base.rotation − 3/(T+1)`
+- **after** (`z > N`): `x = base.x + 8·p·c rem`, `rotation = base.rotation + 3/(T+1)`;
+  the **last** card is special-cased to `x` offset `0` and `y = base.y − 1rem`
+- every tween: `duration 0.5`, `ease "elastic.out(1, 0.75)"`, `overwrite:"auto"`,
+  placed in the timeline at **`T × 0.02`s**
+
+Reset `D()` returns every card to base with the same 0.5s elastic, staggered at
+`|index − E| × 0.02`. Card `mouseleave` resets after a **50ms** debounce (and
+only if that card is still the active one); container `mouseleave` resets
+immediately with no debounce.
+
+**The behavioural headline, and the thing a still cannot show you:** the hovered
+card **does not translate to centre and does not straighten**. It keeps its own
+x and its own fan angle, lifts 2.5rem, grows 8%, and *shoves its neighbours
+outward* — the fan opens around the pointer. Any rebuild that snaps the hovered
+card to centre/rotation-0/scale-1.1 is a different interaction, and reads as a
+jump. `overwrite:"auto"` + the 50ms debounce are what keep it from flickering
+between adjacent cards; there is no nearest-centre hit-testing anywhere.
+
+## Porting `elastic.out(1, 0.75)` without GSAP
+
+With amplitude 1 and period 0.75, GSAP's `s = p/(2π)·asin(1/a) = 0.1875`:
+
+```js
+const elasticOut = (t) =>
+  Math.pow(2, -10*t) * Math.sin((t - 0.1875) * (2*Math.PI/0.75)) + 1
+// f(0) = 0, f(1) ≈ 1.0005
+```
+
+Exact, and usable as a custom easing function in framer-motion's `animate()`,
+so the feel ports with no new dependency. Verified end to end against this
+spec in headless Chrome: entrance holds, rises on `power2.out`, overshoots the
+fan target (x −429 against a −390 target, rot −23 against −21) and settles
+exact; hover lift, ×1.08 scale, `3/(T+1)` neighbour rotations and the
+last-card special case all reproduce.
+
+**Three porting traps, all measured, none of which raise an error:**
+
+1. **framer-motion does not read a `transform` shorthand string back out of
+   the DOM.** It keeps its own record of `x/y/rotate/scale` per element. Seed
+   the pre-entrance state with `animate(el, {...}, {duration: 0})`, never
+   `el.style.transform = "translate(0px,130px)…"` — with the hand-written
+   string framer believed `y` was still 0, saw a target of 0, and applied it in
+   one frame, so the closed stack **snapped** instead of rising (y went 130→0
+   inside 63ms against a 0.8s tween).
+2. **Two `animate()` calls created in the same tick both claim a shared
+   property immediately** — the second wins at *creation*, not when its `delay`
+   elapses. Both entrance phases animate `y`, so queueing the fan with a delay
+   silently destroyed the rise. GSAP is immune because a timeline instantiates
+   each tween when the playhead reaches it; reproduce that by scheduling
+   *creation* (`setTimeout`), not by passing a delay.
+3. **GSAP's `"-=0.4"` is relative to the end of the previous tween INCLUDING
+   its stagger**, not its duration. Here that is `0.8 + 0.5 = 1.3`, so the fan
+   starts at `0.9s`. Using `duration − 0.4 = 0.4s` starts it while most cards
+   are still rising and swallows the first beat.
 
 Occlusion math for anyone re-skinning it (AABB half-extent
 `(w·cosθ + h·sinθ)/2`, each card occluded by its inner neighbour): visible

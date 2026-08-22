@@ -286,7 +286,15 @@
     })
     .sort((a, b) => b.count - a.count);
 
-  const tally = (arr) => Object.entries(arr.reduce((m, v) => (v && (m[v] = (m[v] || 0) + 1), m), {}))
+  // Guard on null/empty, NOT on truthiness. `v &&` silently drops every zero
+  // bucket, and for triggerViewportPct 0 is a real, meaningful value: an element
+  // already in view when its animation fires. Measured on framer.media 2026-08-17,
+  // where 0% was the LARGEST bucket at 24 uses and vanished from the summary
+  // entirely, leaving four buckets summing to 63 against a reported
+  // scrollTriggered of 87. The discrepancy between those two numbers is the only
+  // reason it was caught, so keep both in the output.
+  const tally = (arr) => Object.entries(
+    arr.reduce((m, v) => ((v !== null && v !== undefined && v !== '') && (m[v] = (m[v] || 0) + 1), m), {}))
     .sort((a, b) => b[1] - a[1]);
 
   const out = {

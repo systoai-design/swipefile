@@ -25,6 +25,20 @@ Ink `#1c1a17` (warm near-black, 833× top of census) · cream ramp `#fff4e8` /
 ink alphas .74/.55 for secondary text. Single-accent-over-neutral-ramp
 (CreateStudio pattern) with a *warm* ramp instead of grey.
 
+**Correction, 2026-08-18 (measured, not DOM-observed — this capture's
+rendered-DOM pass records what the CSS declares, not what it resolves to):**
+`#ff532e` accent text on the `#fff4e8` cream background computes to **2.96:1**
+contrast (WCAG relative-luminance formula), under the 3:1 floor for large text
+and well under 4.5:1 for body text — despite the project's own `BRAND.md`
+claiming this pairing "passes WCAG AA for large text." Found while building two
+HyperFrames videos from this same brand (`hyperframes-systo-intro`,
+`hyperframes-systo-explainer`); `npx hyperframes check`'s contrast audit is
+what caught it. Fix used there, verified: `#fa5029` for accent-as-text only
+(3.10:1, visually near-identical to `#ff532e`) — true `#ff532e` stays correct
+for non-text use (fills, gradients, the logo tile). Secondary ink-alpha text
+also measured short (72%-opacity ink on cream ≈ 3.8:1); solid `#76706a`
+clears 4.51:1. Neither fix is live on the site itself as of this note.
+
 ## Structure — 20 sections, narrative spine
 
 hero (word-reveal spans + count-up stats) → marquee → manifesto → problem

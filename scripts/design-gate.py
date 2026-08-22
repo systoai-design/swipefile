@@ -34,7 +34,7 @@ Three rules it keeps, all inherited from the gates already in this folder:
 
 Exit 0 when nothing FAILs, 1 otherwise. `--strict` also blocks on UNVERIFIED.
 """
-import argparse, json, math, os, re, subprocess, sys
+import argparse, collections, json, math, os, re, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 PROBE = os.path.join(HERE, 'design-gate.js')
@@ -47,10 +47,34 @@ HERO_PAD_MAX_PX = 96
 RADIUS_SCALE_MAX = 3
 ACCENT_STRUCTURAL_USES = 3
 
+# A page where most sections are one flat background-color, no gradient, no
+# image, no canvas, is the single tell fresh-eyes critique keeps naming by
+# hand: "every card/section is a flat fill with a hairline border." Some flat
+# fills are legitimate — a pricing table, a plain footer — so this stays a
+# ratio and a WARN, not a count and a FAIL.
+FLAT_FILL_RATIO_WARN = 0.6
+
+# Same story for section openings: a repeated eyebrow/heading/subhead/content
+# stack reads fine twice or three times and as a template past that. Chosen
+# well under the "eight times" a real critique named, so it still fires long
+# before a page gets there.
+SECTION_OPEN_REPEAT_WARN = 4
+
 # Banned as *default* display serifs by the taste skill — the two the model
 # reaches for unprompted. Justified use is a conversation, so this is a FAIL an
 # agent can answer for, not a silent rewrite.
 BANNED_DISPLAY_SERIFS = ('fraunces', 'instrument serif')
+
+# Native OS faces: legitimately never go through @font-face, so `loaded` is
+# meaningless for them and flagging their absence from document.fonts is a
+# false positive on every page that uses them on purpose.
+SYSTEM_FONTS = {
+    '-apple-system', 'blinkmacsystemfont', 'segoe ui', 'system-ui', 'ui-sans-serif',
+    'ui-serif', 'ui-monospace', 'ui-rounded', 'sans-serif', 'serif', 'monospace',
+    'cursive', 'fantasy', 'arial', 'helvetica', 'helvetica neue', 'roboto',
+    'times new roman', 'times', 'georgia', 'cambria', 'courier new', 'courier',
+    'verdana', 'tahoma', 'trebuchet ms',
+}
 
 # The premium-consumer palette every AI build converges on. Gated on --brief so
 # an artisan brand that genuinely names these colours is not fighting the tool.
@@ -201,6 +225,52 @@ def evaluate(shots, src_hits, mode, brief, strict_hero_visual):
               + '; '.join(e['text'][:24] for e in d['eyebrows']['samples'][:5]),
               note=f'{got} over {n_sections} sections')
 
+    # Flat-fill census: bgImage already catches gradients (CSS puts them on
+    # background-image, same property as a url()) and any image sitting
+    # behind the section; media catches an img/video/canvas/svg painted
+    # inside it. Neither true is a flat solid fill.
+    if n_sections == 0:
+        c.unverified('flat-fill census: sections vary their background treatment',
+                     'no content sections resolved — check the served URL')
+    else:
+        flat = [s for s in sections if not s['bgImage'] and s['media'] == 0]
+        flat_ratio = len(flat) / n_sections
+        c.add(f'flat-fill census: <= {int(FLAT_FILL_RATIO_WARN * 100)}% of sections are flat solid colour',
+              flat_ratio <= FLAT_FILL_RATIO_WARN,
+              f'{len(flat)}/{n_sections} sections ({round(flat_ratio * 100)}%) are a single flat '
+              'solid colour with no gradient, image, or canvas behind them — not automatically '
+              'wrong, but the single biggest tell of a templated page',
+              tier='WARN')
+
+    # Section-opening monotony: a heuristic tag/size/weight/case fingerprint
+    # of each section's first few children (design-gate.js openShape), the
+    # same signal the eyebrow census above reads, taken per section instead
+    # of per page. A shared fingerprint does not prove a copy-paste section —
+    # this counts, it does not verdict, the same way the theme-lock crossings
+    # below count crossings and leave the call to whoever reads the report.
+    opens = [tuple(s['openShape']) for s in sections
+             if s.get('openShape') and len(s['openShape']) >= 2]
+    if not opens:
+        c.unverified('section-opening monotony (heuristic)',
+                     'no section-opening fingerprints resolved')
+    else:
+        counts = collections.Counter(opens)
+        top_shape, top_count = counts.most_common(1)[0]
+        run_len = longest_run = 1
+        for a, b in zip(opens, opens[1:]):
+            run_len = run_len + 1 if a == b else 1
+            longest_run = max(longest_run, run_len)
+        worst_repeat = max(top_count, longest_run)
+        c.add(f'section-opening monotony (heuristic): no opening shape repeats '
+              f'{SECTION_OPEN_REPEAT_WARN}+ times',
+              worst_repeat < SECTION_OPEN_REPEAT_WARN,
+              f'{top_count}/{len(opens)} sections open with the same structure '
+              f'({" > ".join(top_shape)}), longest consecutive run {longest_run} — a heuristic '
+              "fingerprint of each section's first children, not a verdict; read it and judge "
+              'whether the repeat is a deliberate rhythm or the templated '
+              'eyebrow/heading/subhead/content stack',
+              tier='WARN')
+
     run, worst = 0, 0
     for s in sections:
         run = run + 1 if s['splitImageText'] else 0
@@ -333,6 +403,19 @@ def evaluate(shots, src_hits, mode, brief, strict_hero_visual):
     banned = [f["family"] for f in painted
               if any(b in f['family'].lower() for b in BANNED_DISPLAY_SERIFS)]
     c.add('no banned default display serif', not banned, ', '.join(banned))
+
+    # The opposite failure `painted` was never checked for: a font *declared*
+    # with real weight on the page (uses >= 2) that is not a native OS face and
+    # never actually loaded. That page is not shipping the wrong font — it is
+    # shipping no font at all, silently, on top of a passing report. A 404'd
+    # @font-face or a family named in Tailwind config with no font file behind
+    # it both land here identically: declared, unloaded, invisible to a
+    # screenshot at a glance because the fallback still renders text.
+    declared = [f for f in d['census']['families']
+                if f['uses'] >= 2 and f['family'].lower() not in SYSTEM_FONTS]
+    unloaded = sorted({f['family'] for f in declared if not f['loaded']})
+    c.add('every declared font actually renders (no silent system fallback)',
+          not unloaded, '; '.join(unloaded))
 
     warm_bg = {s['bgHex'].lower() for s in sections} & BANNED_WARM_BG
     warm_accent = {a['hex'].lower() for x in d['census']['accents'] for a in x['samples']} \
