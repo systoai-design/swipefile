@@ -317,10 +317,69 @@ With entries present, the read costs one file and pays for itself three ways:
 - **Adapt mode?** The library *is* the reference shelf. Pull a motion signature or
   a type ratio from a site already captured instead of guessing at a feel.
 
+**A brief with a "wow"/premium/distinctive ambition changes what this read is
+checking for.** Most captures sit in the same CSS/DOM/Framer-template register,
+so a donor search run on autopilot quietly inherits whatever register the
+library happens to be full of, and defaults to more of the same the moment
+ambition asks for something that register cannot deliver. The library already
+held the counter-evidence once: Sylva (`library/sylva.md`) is a hand-built
+three.js site where the UI itself carries zero saturated hue anywhere in its
+16-swatch palette — "the colour comes from the WebGL scene," not any DOM
+element — directly relevant to a later "no flat colors, use three.js" request.
+Nothing in donor selection surfaced it; the entry only got used once the user
+asked outright why swipefile wasn't reaching for three.js at all, on a build
+where the entry had been sitting in the library the whole time. So when the
+brief's ambition language reads as "wow," premium, or best-in-class — not
+merely "nice" — read every entry's *Notable* column, not just its *Motion
+fidelity* column, and say out loud whether any of them uses WebGL, canvas, an
+SVG filter, or another technique outside the default register before
+defaulting to whatever register most captures happen to be in. Surfacing it is
+not choosing it — mechanism quality still decides the donor — but a register
+nobody named can't be weighed at all.
+
+**ThreeUI (`library/threeui.md`) is the other half of that check, and usually
+the first one worth reading.** Where Sylva demonstrates that a bespoke
+three.js register can carry a whole page, ThreeUI is a real, MIT-licensed,
+`npm install`-able catalog of 220 ready components (buttons, backgrounds,
+data-field visuals, brand-mark reveals) built explicitly for agents to pull
+into a build — a donor catalog, not a site to study. Before hand-authoring a
+CSS/SVG approximation of a "premium" moment, check whether ThreeUI already has
+a Community-tier component for the job; it usually beats building one from
+scratch, and its source is directly readable rather than something to
+reverse-engineer from computed styles.
+
 The cross-site patterns section at the bottom of the index is the compounding
 part — it is where "scroll-reveal is usually a two-class gate" and "column counts
 are increasingly JS-computed" come from. Those generalisations are what make the
 next capture faster.
+
+## Step 0.5 — Brief the gaps, on paper
+
+**Fires for Adapt or Brand-generation** — anything that ships as the user's own
+site rather than a local study. Match and Transfer skip it: Match's reference
+already answers everything, and Transfer's target is the user's own existing
+page, which already has everything but the one mechanism being copied in.
+
+Run the `design-intake` skill. It is the standing version of the rule
+`references/taste.md` §1 states outright — *"every gap gets filled with a
+default, and the defaults are the problem"* — covering not just a missing
+reference but every input a reference doesn't supply: brand kit, previous
+design, copy ownership, contact info, form destinations, page scope, imagery
+source, and (only when there is no reference at all) a style family. It asks
+one question at a time, pre-filled from whatever the request already said, and
+accepts "your call" as a complete answer wherever a dial is genuinely the
+user's to skip — that delegation is then `references/taste.md`'s to resolve,
+including font choice, which routes through §1a's sourcing tiers (Google Fonts
+self-hosted, then Fontshare, then a user-supplied commercial file) rather than
+a pairing-pool name with no path to an actual file behind it.
+
+Its output, `BRIEF.md`, is what Step 1 reads before capturing anything — do not
+proceed on a guess when this step applies. It also doubles as Step 4 Gate B's
+"the brief in one line" input, so writing it once here is the only time it gets
+written. Under `studio-os`, the same interview fills `docs/project/01-brand.md`
+instead of a standalone file — see `design-intake`'s own SKILL.md for that
+split and for what it deliberately leaves to Studio OS (budget, deadline,
+approval gates) rather than asking twice.
 
 ## Step 1 — Capture
 
@@ -433,7 +492,21 @@ animations and `linear()`.
 
 ## Step 3 — Build in this order
 
-Each layer constrains the next, so order matters.
+**On a build with a `BRIEF.md` (Adapt or Brand-generation, no reference —
+`design-intake`'s field 0): check every proposed section against the stated
+thesis before writing it, not after.** "This genre of site usually has a
+testimonials section / a trust-logo marquee / an AI-chat demo" is not a
+reason to add one — it's the exact failure `design-intake`'s field 0 exists
+to stop, and it is invisible to every gate below, because a testimonials
+section built competently still passes contrast checks, still clears the
+copy gate, still measures a clean font census. None of that says whether the
+section belongs. A section that doesn't serve the thesis gets reworked until
+it does, or cut. This is a standing failure mode, not a hypothetical one — a
+build here shipped eleven sections this way, iterated on for hours, and the
+fresh-eyes critique named the same root complaint three separate times
+before anyone asked why a *build* problem kept surviving *fix* after fix.
+
+Each layer below constrains the next, so order matters.
 
 1. **Tokens as CSS custom properties.** Every color, size, and radius resolves
    through a variable. Values hardcoded across the markup make Step 4 painfully
