@@ -30,11 +30,25 @@ def check(name, cond, detail=''):
           f'{"  — " + str(detail)[:400] if detail and not cond else ""}')
 
 
+# Six distinct opening fingerprints so the default 6-section page (below) is
+# clean on the section-opening-monotony check too — a "disciplined page"
+# fixture that quietly repeated its own shape would be the wrong baseline.
+_OPEN_SHAPES = [
+    ['div:s:n:u', 'h2:xl:b', 'p:m:n'],
+    ['h3:l:b', 'p:m:n', 'ul:m:n'],
+    ['img:m:n', 'h2:l:b'],
+    ['blockquote:l:n', 'p:m:n'],
+    ['div:m:n', 'div:m:n', 'div:m:n'],
+    ['h2:xl:b', 'div:m:n', 'p:m:n', 'div:s:n'],
+]
+
+
 def section(i, lum=1.0, split=False):
     return {'index': i, 'tag': 'section', 'id': None,
             'rect': {'top': i * 800, 'left': 0, 'width': 1440, 'height': 800},
             'bgHex': '#ffffff', 'bgLuminance': lum, 'bgImage': False, 'media': 1,
-            'childCount': 2, 'gridColumns': 2, 'splitImageText': split}
+            'childCount': 2, 'gridColumns': 2, 'splitImageText': split,
+            'openShape': _OPEN_SHAPES[i % len(_OPEN_SHAPES)]}
 
 
 def shot(**over):
@@ -162,6 +176,34 @@ ALL_IMG = [dict(section(i), bgImage=True) for i in range(4)]
 check('sections on photography are unverified, not failed on the div behind them',
       status(ev({1440: shot(sections=ALL_IMG)}, src=[]), 'theme lock') == 'UNVERIFIED')
 
+# ---- flat-fill census: most sections being one flat colour is a tell, not a fail
+FLAT = [dict(section(i), media=0) for i in range(6)]
+c = ev({1440: shot(sections=FLAT)}, src=[])
+check('mostly flat solid-colour sections warn, they do not fail',
+      status(c, 'flat-fill census') == 'WARN', detail(c, 'flat-fill census'))
+check('and the census names the count', '6/6' in detail(c, 'flat-fill census'),
+      detail(c, 'flat-fill census'))
+VARIED_FILL = [dict(section(0), media=0), dict(section(1), media=0),
+               section(2), section(3), section(4), section(5)]
+check('a page where only a couple sections are flat does not warn',
+      status(ev({1440: shot(sections=VARIED_FILL)}, src=[]), 'flat-fill census') == 'pass')
+check('zero sections resolved is unverified, not a silent pass',
+      status(ev({1440: shot(sections=[])}, src=[]), 'flat-fill census') == 'UNVERIFIED')
+
+# ---- section-opening monotony: heuristic, read and judged, not a verdict
+SAME_OPEN = [dict(section(i), openShape=['div:s:n:u', 'h2:xl:b', 'p:m:n']) for i in range(6)]
+c = ev({1440: shot(sections=SAME_OPEN)}, src=[])
+check('six sections opening with the identical structure warn',
+      status(c, 'section-opening monotony') == 'WARN', detail(c, 'section-opening monotony'))
+check('and the census names the repeated shape',
+      'h2:xl:b' in detail(c, 'section-opening monotony'), detail(c, 'section-opening monotony'))
+check("a page whose sections open differently doesn't warn",
+      status(ev(src=[]), 'section-opening monotony') == 'pass')
+NO_SHAPES = [dict(section(i), openShape=[]) for i in range(4)]
+check('no resolvable opening fingerprints is unverified, not a silent pass',
+      status(ev({1440: shot(sections=NO_SHAPES)}, src=[]), 'section-opening monotony')
+      == 'UNVERIFIED')
+
 # ---- consistency locks
 TWO_ACCENTS = shot(census=dict(shot()['census'], accents=[
     {'hue': 0, 'uses': 20, 'samples': [{'hex': '#ff532e', 'uses': 20}]},
@@ -188,6 +230,19 @@ PAINTED = shot(census=dict(shot()['census'], families=[
     {'family': 'Fraunces', 'uses': 30, 'loaded': True}]))
 check('a banned serif that is actually painted fails',
       status(ev({1440: PAINTED}, src=[]), 'display serif') == 'FAIL')
+
+# ---- fonts: declared but never rendering (silent system fallback)
+check('a font declared with real weight that never loaded fails',
+      status(ev({1440: DECLARED}, src=[]), 'no silent system fallback') == 'FAIL')
+NAMES_SYSTEM_UI = shot(census=dict(shot()['census'], families=[
+    {'family': 'system-ui', 'uses': 90, 'loaded': False}]))
+check('a native OS face is exempt — it never goes through @font-face',
+      status(ev({1440: NAMES_SYSTEM_UI}, src=[]), 'no silent system fallback') == 'pass')
+STRAY_UNLOADED = shot(census=dict(shot()['census'], families=[
+    {'family': 'Geist', 'uses': 90, 'loaded': True},
+    {'family': 'SomeIcon', 'uses': 1, 'loaded': False}]))
+check('an unloaded family used once is noise, not a fallback worth failing on',
+      status(ev({1440: STRAY_UNLOADED}, src=[]), 'no silent system fallback') == 'pass')
 
 # ---- the premium-consumer palette is brief-scoped, not universal
 BEIGE = shot(sections=[dict(section(i), bgHex='#f5f1ea') for i in range(4)])

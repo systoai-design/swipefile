@@ -290,3 +290,23 @@ identical widths on a page where the font is genuinely loaded. Take the largest,
 most distinctive family in the type census as the probe target, and force
 `sans-serif` on the control arm rather than dropping the first family off the
 stack.
+
+## Scrolling a page in a harness: always `behavior: "instant"`
+
+Any script that walks a page to fire reveal gates, load lazy images or settle
+scroll-linked state must scroll instantly:
+
+```js
+scrollTo({ top: y, behavior: "instant" });
+```
+
+A plain `scrollTo(0, y)` loop against a page with `html { scroll-behavior:
+smooth }` animates every step, never catches up, and stops somewhere in the
+middle of the document. Everything below that point is never revealed, so the
+capture comes back with correctly-spaced but empty sections and the obvious
+reading is that the reveal gate is broken. Measured once at full cost: 6 of 13
+gates fired, the remaining 7 reported `opacity: 0`, and the page was correct in
+a real browser throughout.
+
+Read blank-but-height-reserved sections as a scrolling failure first, and the
+gate second.

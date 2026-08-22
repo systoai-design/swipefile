@@ -165,6 +165,22 @@
       && kids[0].getBoundingClientRect().width < el.getBoundingClientRect().width * 0.75;
     const hasImg = (n) => n.querySelector('img, picture, video, canvas')
       || getComputedStyle(n).backgroundImage !== 'none';
+    // Section-opening fingerprint: tag, rough type size, weight, and the same
+    // uppercase-tracking test eyebrowCount uses below, read per child instead
+    // of per page. Two sections producing the same string opened with the
+    // same shape — whether that is a deliberate rhythm or the templated
+    // eyebrow/heading/subhead/content stack is a call for design-gate.py's
+    // consumer, not this probe.
+    const openShape = kids.slice(0, 4).map((k) => {
+      const kcs = getComputedStyle(k);
+      const sz = parseFloat(kcs.fontSize) || 0;
+      const bucket = sz >= 40 ? 'xl' : sz >= 24 ? 'l' : sz >= 17 ? 'm' : 's';
+      const kt = ownText(k) || (k.innerText || '').trim();
+      const upper = kcs.textTransform === 'uppercase'
+        || (!!kt && kt === kt.toUpperCase() && /[A-Z]{2}/.test(kt));
+      return `${k.tagName.toLowerCase()}:${bucket}:${parseInt(kcs.fontWeight, 10) >= 600 ? 'b' : 'n'}`
+        + (upper ? ':u' : '');
+    });
     return {
       index: i,
       tag: el.tagName.toLowerCase(),
@@ -177,6 +193,7 @@
       childCount: kids.length,
       gridColumns: cols,
       splitImageText: !!(sideBySide && (hasImg(kids[0]) !== hasImg(kids[1]))),
+      openShape,
     };
   });
 
@@ -359,8 +376,13 @@
     if (accentBuckets[bucket].samples.length < 4) accentBuckets[bucket].samples.push({ hex: k, uses: n });
   }
 
+  // status, not presence: a @font-face that 404s is still IN document.fonts
+  // (browsers register the rule on parse, before the fetch resolves), so
+  // presence alone reads a failed fetch as a successful one.
   const loadedFaces = new Set();
-  try { document.fonts.forEach((f) => loadedFaces.add(f.family.replace(/["']/g, ''))); } catch (e) { /* older engine */ }
+  try {
+    document.fonts.forEach((f) => { if (f.status === 'loaded') loadedFaces.add(f.family.replace(/["']/g, '')); });
+  } catch (e) { /* older engine */ }
 
   /* ---------- motion ---------- */
 
