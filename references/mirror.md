@@ -1,9 +1,9 @@
-# The mirror path — Match mode for server-rendered sites
+# The mirror path: Match mode for server-rendered sites
 
 When the site is server-rendered, do not rebuild it by hand. Mirror it: their
 markup, their stylesheets in their cascade order, their assets, rewritten to
 local paths by script. A hand rebuild of a server-rendered page is re-deriving
-files you can fetch — every transcription step loses fidelity (grid spans read
+files you can fetch. Every transcription step loses fidelity (grid spans read
 as 6/12 when they are 7/13, a token guessed at 5.06em when it is 6em). The
 mirror has no transcription steps, which is why it measures 99%+ where careful
 hand rebuilds plateau near 94%.
@@ -11,7 +11,7 @@ hand rebuilds plateau near 94%.
 ## 1. Decide which path applies
 
 `curl` the page and grep it for strings you can see on screen. Do not assume from
-the stack — Framer-built sites look client-rendered and pre-render their markup
+the stack. Framer-built sites look client-rendered and pre-render their markup
 in full.
 
 - Key strings and section markup present in the raw HTML → **mirror path** (this
@@ -23,7 +23,7 @@ in full.
 ## 1b. Static or scripted mirror
 
 Default to stripping scripts: a static mirror is inert, offline, and
-deterministic. But stripping freezes any region whose **state** is JS-driven —
+deterministic. But stripping freezes any region whose **state** is JS-driven:
 product demos, animated walkthroughs, tabbed/cycling panels. The page still
 renders; that region just sits at its initial state and scores far below the
 rest.
@@ -37,7 +37,7 @@ Diagnose before you conclude the mirror failed:
 
 Then produce a **scripted variant**: mirror the JS modules alongside the other
 assets, rewrite their urls per step 2, and keep the `<script>` tags. Still
-neutralize every `<a href>` and `<form action>` — to `#inert`, never bare `#`.
+neutralize every `<a href>` and `<form action>`: to `#inert`, never bare `#`.
 
 Measured on framer.com's product-demo panel:
 
@@ -47,7 +47,7 @@ Measured on framer.com's product-demo panel:
 | viewport | 90.88% | **99.74%** |
 
 Reference-vs-itself on that panel was 99.13%, so the scripted mirror is as
-faithful as the page is to itself — that is the ceiling, and chasing past it
+faithful as the page is to itself; that is the ceiling, and chasing past it
 measures animation phase, not fidelity.
 
 The tradeoff is real and worth stating in the notes: a scripted mirror executes
@@ -70,7 +70,7 @@ grep -oE 'href="/assets/css/[^"]+' ref.html | sed 's|href="||' > css-list.txt
 ```
 
 Send the `Accept` header too, not just the UA. A CDN answering `vary: Accept`
-hands your mirror different bytes than it hands the browser —
+hands your mirror different bytes than it hands the browser:
 framerusercontent.com serves AVIF to Chrome's `image/avif,image/webp,…` and PNG
 to `Accept: */*`, which is what a bare fetch sends by default. Both are 200, so
 nothing in any log says anything happened; you have simply mirrored a different
@@ -82,9 +82,9 @@ the leading bytes rather than the name.
 
 Then, in a script (not by hand):
 
-1. **Rewrite CSS asset urls** — every `url(...)` → the local asset name,
+1. **Rewrite CSS asset urls**: every `url(...)` → the local asset name,
    root-absolute (`url(/cdn/...)`) like the module bodies below, so the same
-   sheet resolves from any page depth — and collect every referenced url while
+   sheet resolves from any page depth, and collect every referenced url while
    doing it.
 2. **Mirror every referenced asset**: fonts, icons, images from the CSS pass,
    plus everything the HTML references via `src`, `srcset`, `poster`. A response
@@ -93,7 +93,7 @@ Then, in a script (not by hand):
    contradict the extension. A soft 404 is HTTP 200 with an error page in the
    body; written to `hero.png` it is an integrity problem that resurfaces two
    steps later as a region that looks like it failed to render. Keep every
-   rejection as `(url, reason)` — that list is the report's Assets row and the
+   rejection as `(url, reason)`. That list is the report's Assets row and the
    first thing to read when a region scores short.
 
    **Keep the query.** A distinct query is a distinct asset: srcset candidates
@@ -105,15 +105,15 @@ Then, in a script (not by hand):
    names `stem__<8hex>.ext`.
 
    **Derive the CMS siblings.** Collections ship as `-chunk-`/`-indexes-` pairs
-   and only one name is a literal in the bundle — the other is built by runtime
+   and only one name is a literal in the bundle. The other is built by runtime
    substitution, so a scan finds one, the loader 404s on the other, and the
    collection renders empty with no error. Substitute the name both ways and
    fetch both. A derived name that 404s upstream is expected and harmless.
 
    **Follow the text assets to a fixed point.** Re-scan every mirrored text
    asset (css, js, mjs, json, CMS data) for the URLs it references, and resolve
-   relative dynamic imports against *that module's own* URL, not the page's —
-   bundler chunks reference each other as `import('./X.mjs')`, which a
+   relative dynamic imports against *that module's own* URL, not the page's.
+   Bundler chunks reference each other as `import('./X.mjs')`, which a
    host-anchored scan over markup cannot see. Add what is new and repeat until
    the set stops growing (`build.py --max-rounds`, default 6). Skip it and the
    srcs those modules build at runtime keep pointing at the origin: on one site
@@ -124,7 +124,7 @@ Then, in a script (not by hand):
    relative form (`cdn/x`). Inside a module the same string is resolved against
    the module as an import specifier and against the document when it becomes a
    DOM `src` at runtime; `./x` is correct for one and 404s for the other.
-   Never relativise a URL used as the second argument of `new URL(rel, base)` —
+   Never relativise a URL used as the second argument of `new URL(rel, base)`:
    a base must stay absolute or the constructor throws TypeError, and one
    uncaught error in a framework bundle takes the whole render down. The symptom
    does not point at the cause: images and boxes paint normally while **all text
@@ -132,10 +132,10 @@ Then, in a script (not by hand):
    substitute `location.origin` so it stays absolute with no hardcoded port.
 
 3. **Build the local page from ref.html**:
-   - strip every `<script>` block — the mirror must be fully static
+   - strip every `<script>` block: the mirror must be fully static
    - strip `integrity=` and `crossorigin=` from every `<link>` and `<script>`.
      Rewriting a sheet's `url()`s changes its bytes, the SRI hash stops matching,
-     and the browser drops the entire sheet with **no console error** — the page
+     and the browser drops the entire sheet with **no console error**; the page
      renders in Times and `document.fonts.size === 0`, which reads as a font
      problem and is not one
    - point every asset url at its local name, keeping any query that is not a
@@ -149,7 +149,7 @@ Then, in a script (not by hand):
 4. **Sweep for origin references, then measure.** Zero absolute references to
    the reference's domain may remain. `grep -R` over the built tree is the cheap
    pre-check and it is necessary: attribute-driven rewriting (`src`, `href`,
-   `srcset`) misses inline `<style>` blocks — where `@font-face` usually lives —
+   `srcset`) misses inline `<style>` blocks (where `@font-face` usually lives)
    plus JSON-LD, `og:` meta, and preloads. Cross-origin fonts are CORS-blocked
    and fall back **silently**, so this single missed class of URL quietly changes
    every text width on the page. Mirror what the sweep finds.
@@ -168,18 +168,18 @@ Then, in a script (not by hand):
    Read the local 404s in that same log too. Assets that failed to mirror are
    pointed at local paths on purpose, so a miss surfaces here as a 404 you can
    name instead of as an origin reference you never see. Run this on **every**
-   variant you build and at **every** breakpoint — a scripted variant rebuilt
+   variant you build and at **every** breakpoint: a scripted variant rebuilt
    from raw HTML does not inherit the static variant's fixes, and the components
    that build srcs at runtime are usually the mobile ones. Only then verify fonts
    per the gate in SKILL.md (`document.fonts.check` + canvas width A/B).
-5. **Serve over HTTP with `scripts/serve.py`** — `file://` breaks path
+5. **Serve over HTTP with `scripts/serve.py`**: `file://` breaks path
    resolution and renders as a static snapshot in some panes. Use `serve.py`,
    not `python3 -m http.server`: the stock server ignores query strings, and
    Framer's CMS loader slices data chunks with `?range=a-b` (and multi-range
    `?range=a-b,c-d`, comma percent-encoded) then validates the response length.
    Getting the whole file back raises `Unexpected response length`, which Framer
    treats as fatal and tears the rendered tree down to an empty shell. It races
-   the render, so it looks intermittent — a headless capture can pass while the
+   the render, so it looks intermittent; a headless capture can pass while the
    interactive page collapses. One page measured **9.76% against a 99.93%
    ceiling** from this alone while its 20 siblings sat at 99.7%+. `serve.py`
    also pins the MIME types that block ES modules when guessed wrong. It is a
@@ -187,7 +187,7 @@ Then, in a script (not by hand):
    range request is unaffected.
 
    Serve the variant directory, not the run root. `build.py` symlinks
-   `site/cdn -> ../cdn` so both forms resolve from inside it — the relative
+   `site/cdn -> ../cdn` so both forms resolve from inside it: the relative
    `cdn/x` in markup and the root-absolute `/cdn/x` in module bodies.
 
    ```bash
@@ -200,7 +200,7 @@ Region-split pixel diff per `verify.md`. Expect ≥99% overall. Residuals that a
 normal and not worth chasing: server-printed live numbers (visitor counters
 differ per load), animation-frame timing, glyph antialiasing noise.
 
-If a region is materially below the rest, something failed to mirror — read the
+If a region is materially below the rest, something failed to mirror. Read the
 build's rejection list and the network log before theorising: assets that
 returned HTML 404 bodies, absolute urls the rewrite missed, or content the page
 mounts with JS (that region needs the rebuild path grafted in). A page that
@@ -210,7 +210,7 @@ suspect.
 
 ## 4. What the mirror is for, and the line
 
-The text layer arrives verbatim because the mirror copies files — that is the
+The text layer arrives verbatim because the mirror copies files. That is the
 point: a pixel-true scaffold whose copy, imagery and branding the user then
 replaces with their own. The standing rule from SKILL.md applies with no
 exceptions here: **local study artifact only.** Links inert, scripts stripped,

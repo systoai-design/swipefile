@@ -4,7 +4,7 @@
 
 Independent retirement-planning firm, Littleton CO. Captured 2026-08-13 @ 1440x900
 and 390x844, 17 pages of the design surface. Stack: **WordPress 6.9.7 + Divi
-4.27.6**. Path: capture only — used as the *content* source for an Adapt that
+4.27.6**. Path: capture only, used as the *content* source for an Adapt that
 re-skinned it onto the Systowise (agentwise) system. Not mirrored.
 
 ## Why it was captured
@@ -13,14 +13,14 @@ Redesign target, not a donor. The value here is the content extraction and the
 catalogue of what a dated Divi build looks like when measured rather than
 eyeballed.
 
-## Type — four families, no division of labour
+## Type: four families, no division of labour
 
 Montserrat (59 uses), Lato (10), Oswald (5), plus **ETMODULES**, Divi's icon
 font (3). No role separation: headings appear in all three text families at
 different points on the same page. Nearly every heading is ALL CAPS with
 2-3px letter-spacing.
 
-Body is set **18px / 36px** — a 2.0 line-height, far too loose for long prose.
+Body is set **18px / 36px**: a 2.0 line-height, far too loose for long prose.
 Heading steps found: 70px H1, 40px/600, 30px, 27px, 26px, 21px, 18px, 16.2px.
 
 ## Colour
@@ -34,12 +34,12 @@ busy photographs in three places with failing contrast.
 
 - **Hero is ~3000px tall and is one stock photo** of a curved glass office
   building, with a 70px headline in the top-left corner and nothing else.
-- **Total page height 12,943px** at 1440 — the rebuild lands at 6,757px carrying
+- **Total page height 12,943px** at 1440; the rebuild lands at 6,757px carrying
   the same content.
 - A **~600px empty white gap** mid-page between the testimonial slider and the
   press band.
 - A stray **"3" glyph** leaking from the ETMODULES icon font into all three
-  "Expand To Read More" controls — the classic Divi icon-font failure.
+  "Expand To Read More" controls, the classic Divi icon-font failure.
 - Two overlapping headings in the press band ("AS FEATURED ON" over "AS SEEN IN").
 
 ## Motion
@@ -48,7 +48,7 @@ busy photographs in three places with failing contrast.
 
 Not captured this pass, and not worth a pass: the page's only movement is Divi's
 default testimonial slider and three accordion toggles. There is no signature
-here to borrow — this entry is a content and anti-pattern source, not a motion
+here to borrow. This entry is a content and anti-pattern source, not a motion
 donor.
 
 ## Structural notes
@@ -56,7 +56,7 @@ donor.
 Yoast sitemap overstates the site ~8x: 241 URLs total, of which **187 are blog
 posts** and 24 are tags. The actual design surface is 13 pages + 4 team members +
 6 "project" (radio-station logo) entries. Histogram by first path segment before
-crawling — same pattern already recorded for WordPress in INDEX.md, now confirmed
+crawling: same pattern already recorded for WordPress in INDEX.md, now confirmed
 on a second WP site.
 
 Forms: Divi's own contact form posting back to WP, plus a **Wufoo iframe** on
@@ -66,7 +66,7 @@ conversion tax.
 
 Videos are Vimeo embeds (9 on /videos/).
 
-## Compliance content — the part that must survive any redesign
+## Compliance content: the part that must survive any redesign
 
 Four disclosures appear site-wide and are legally required, not decoration. All
 four were verified present in the raw captured source before reuse:
@@ -92,7 +92,7 @@ instead is a credibility gain, not a cost.
 
 ## What was built from it
 
-`E:\New Claude\Retirement Architects Site` — four pages (home, what we do, our
+`E:\New Claude\Retirement Architects Site`: four pages (home, what we do, our
 team, contact), Vite + Tailwind v4 + three.js, Systowise design system, Liquid
 Glass functional layer, WebGL income-structure hero. Design gate: 2 of 4 pages
 pass clean, 2 carry only deliberate reference-driven overrides.

@@ -5,7 +5,7 @@
 Luxury single-product e-commerce template ("A single daily formula", "The Luxury of Less"). Captured 2026-08-20 @ 1440x900, 810x900, 390x844.
 Stack: Framer (SSR + React hydration). **Mirror path**, 13 pages navigable offline.
 
-## Type — High-contrast display serif with clean modern sans
+## Type: High-contrast display serif with clean modern sans
 
 - **Display Face**: Instrument Serif / Editorial Display for high-impact brand statements and section headlines (48px–96px, line-height 1.05, tracking -0.02em).
 - **Body & UI**: Inter / Plus Jakarta Sans for clean readable product specifications, ingredient callouts, purchase controls, and navigation (13px–16px, line-height 1.5–1.6, weight 400/500).
@@ -18,7 +18,7 @@ Stack: Framer (SSR + React hydration). **Mirror path**, 13 pages navigable offli
 - **Single-Product Hero**: Two-column split at desktop (Sticky Product Media Gallery left 55%, Interactive Buy Box right 45%); stacks vertically at mobile.
 - **Section Rhythm**: Generous vertical whitespace (96px–140px section padding) creating an unhurried, luxury pharmaceutical/apothecary feel.
 
-## Colour — Warm alabaster, deep espresso obsidian, and muted gold
+## Colour: Warm alabaster, deep espresso obsidian, and muted gold
 
 - **Primary Light Surface**: #F7F5F0 / #FAF8F5 (warm cream alabaster).
 - **Primary Dark Surface**: #121110 / #181716 (deep charcoal/obsidian for statement contrast bands).

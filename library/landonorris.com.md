@@ -3,8 +3,8 @@
 **Callable as: Lando Norris** (aliases: lando, landonorris)
 
 Captured 2026-07-30. Official driver site, built by OFF+BRAND on Webflow with a
-large custom WebGL + Rive runtime bolted on. Path taken: **mirror (scripted)** —
-the raw HTML is fully server-rendered, but the hero, the background, and most of
+large custom WebGL + Rive runtime bolted on. Path taken: **mirror (scripted)**.
+The raw HTML is fully server-rendered, but the hero, the background, and most of
 the character of the site live in the JS layer, so the static variant freezes.
 
 ## Stack
@@ -13,7 +13,7 @@ Webflow shell (one shared stylesheet, 1171 rules) + a ~1.3MB custom bundle from
 `lando.itsoffbrand.io`. Worth knowing before you guess:
 
 - **No GSAP global, no THREE global, no ScrollTrigger.** The bundle name-drops
-  gsap.com and rive.app in licence comments, which is misleading — `window.gsap`
+  gsap.com and rive.app in licence comments, which is misleading; `window.gsap`
   and `window.ScrollTrigger` are both undefined. Motion is CSS transitions on one
   token curve, plus Rive state machines, plus a hand-rolled WebGL renderer.
 - `window.landoGL` is the WebGL control surface and it is *fully introspectable*
@@ -23,7 +23,7 @@ Webflow shell (one shared stylesheet, 1171 rules) + a ~1.3MB custom bundle from
   answers in one call what grepping the minified source cannot.
 - Lenis for smooth scroll (`<html class="lenis">`). It owns scroll.
 - **dat.GUI ships in production** (hidden). Its `.dg` rules pollute any
-  hover/focus-state tally — filter them out or you will conclude the site has 41
+  hover/focus-state tally. Filter them out or you will conclude the site has 41
   hover rules when ~12 are actually the design.
 
 ## Tokens as a system
@@ -43,29 +43,29 @@ Root font-size is viewport-derived against a **1728px design width**, clamped
 between 992 and 1920. Verified: at a 1280 viewport the computed root is
 `11.8519px` (= 1280/1728×16). Every `rem` in the type and spacing scale therefore
 scales fluidly and stops scaling outside the clamp. This is the single most
-reusable idea on the site — the whole scale is one formula, not a breakpoint
+reusable idea on the site: the whole scale is one formula, not a breakpoint
 ladder.
 
 Type scale (in rem, so multiply by the fluid root):
 `impact 7.9375 · h2 4.5 · h1 4 · med 2.76 · h3 2 · reg 1.6 · h4 1.5 · h5 1.2 ·
 h6/btn-primary 1 · eyebrow 0.578125`
 
-Note `--text--h2` (4.5) is **larger** than `--text--h1` (4) — h1 is not the top of
+Note `--text--h2` (4.5) is **larger** than `--text--h1` (4): h1 is not the top of
 the scale here; `--text--impact` is, at nearly 2× h2.
 
 Spacing: `mini 1 · container 1.25 · small 2 · med 3 · large 4 · xlarge 5` rem,
 `--gap: 1.25rem`, `--section-padding: calc(3.5rem + (var(--gap) * 2))`.
-Radius: `small 1rem · med 3rem · large 6.25rem` — an unusually wide range; the
+Radius: `small 1rem · med 3rem · large 6.25rem`, an unusually wide range; the
 large radius is what gives the pill/lozenge UI its character.
 
-Palette — a warm off-white/green system, not grey-on-white:
+Palette (a warm off-white/green system, not grey-on-white):
 `lime #d2ff00` (the signature accent) · `lime-off #b2c73a` · `orange #ff6b00` ·
 `dark-green #282c20` · `cream #efefe5` · `white #f4f4ed` · `black #111112` ·
 plus a green-tinted neutral ramp (`#ebeee0 → #c8cbbd → #b4b8a5`). Nothing is a
 pure neutral; every "grey" is green-shifted.
 
 ## Motion signature
-**Motion fidelity: signature-only** — Signature curve, duration and character measured. The actual motion budget is spent in WebGL and 8 Rive state machines, none of which were specced.
+**Motion fidelity: signature-only**. Signature curve, duration and character measured. The actual motion budget is spent in WebGL and 8 Rive state machines, none of which were specced.
 
 
 ```css
@@ -76,7 +76,7 @@ pure neutral; every "grey" is green-shifted.
 
 Confirmed by frequency, not by reading one component: of 12 live animations after
 a full-page scroll, **7 run at exactly `750ms cubic-bezier(0.65,0.05,0,1)`**. A
-slow, heavily back-loaded ease — it leaves fast and settles for a long time.
+slow, heavily back-loaded ease; it leaves fast and settles for a long time.
 Secondary curve `cubic-bezier(0.19,1,0.22,1)` (expo-out) appears once.
 
 Character: almost no CSS keyframe animation (only 3 keyframes site-wide, and one
@@ -87,7 +87,7 @@ tier at `100ms ease-in-out`.
 **Zero `prefers-reduced-motion` rules.** On a site with a permanent WebGL render
 loop, smooth-scroll hijack, and 8 Rive files. Do not copy this part.
 
-## Structural pattern — the runtime-parameterised hero
+## Structural pattern: the runtime-parameterised hero
 
 The hero is not an image or a video. It is a WebGL scene compositing a photo
 plane, a `.glb` helmet, and a wireframe shader, with the helmet livery **chosen
@@ -99,7 +99,7 @@ Consequences that matter for anyone rebuilding or diffing this:
 
 - Texture format is picked at runtime by `innerWidth > 991 ? 'webp' : 'ktx2'`.
   Both sets must be mirrored or narrow viewports 404.
-- The scene never idles — `IS_WIREFRAME_ANIMATING: true` with `SPEED: 0.1` runs
+- The scene never idles. `IS_WIREFRAME_ANIMATING: true` with `SPEED: 0.1` runs
   forever, so **the page is not self-consistent between two loads of itself**.
 - Every parameter is writable at runtime, which is the only practical way to make
   the hero comparable: pin `VARIANT`, `IS_WIREFRAME_ANIMATING` and
@@ -123,8 +123,8 @@ Global focus ring is good and worth stealing:
 :where(:focus-visible) { outline: 2px solid var(--color--lime); outline-offset: 2px; }
 ```
 
-Hover is almost entirely a **fill inversion** on grid rows —
-`background-color: var(--color--lime); color: var(--color--black)` — with
+Hover is almost entirely a **fill inversion** on grid rows,
+`background-color: var(--color--lime); color: var(--color--black)`, with
 `--color--lime-zero` (`#d2ff0000`, lime at zero alpha) used so the transition
 animates to transparent in the same hue rather than fading to white. That
 zero-alpha-of-the-accent trick is the reusable detail. No `:active` rules at all.
@@ -134,7 +134,7 @@ zero-alpha-of-the-accent trick is the reusable detail. No `:active` rules at all
 1. **SRI silently kills the mirror.** Webflow serves the stylesheet with
    `integrity="sha384-…"`. Rewriting its `url()`s changes the bytes, the hash no
    longer matches, and Chrome drops the *entire* stylesheet with no visible
-   error — the page renders in Times with `document.fonts.size === 0`. Strip
+   error; the page renders in Times with `document.fonts.size === 0`. Strip
    `integrity` and `crossorigin` from every `<link>`/`<script>` in the mirror.
    This is the single highest-value line in this file. Note `document.fonts.check()`
    still returns **true** in this state, so only the canvas width A/B catches it.
@@ -148,12 +148,12 @@ zero-alpha-of-the-accent trick is the reusable detail. No `:active` rules at all
 4. **Webflow's CMS placeholder 403s** to non-Webflow clients
    (`/plugins/Basic/assets/placeholder.60f9b1840c.svg`). It only appears inside
    `.w-condition-invisible` (display:none) wrappers, so a local 1×1 is fine.
-5. **Consent (iubenda) and Klaviyo are commented out** in production markup — so
+5. **Consent (iubenda) and Klaviyo are commented out** in production markup, so
    no cookie banner to fight, unusually. But the legal pages inject iubenda from
    an *inline* loader via `document.createElement`, which no `<script src>`
    pattern catches. Neutralise third-party hosts at the string level.
 6. **`/partnerships` 404s on their own site** while being linked from every
-   page's nav. Not a crawl failure — verify before chasing it.
+   page's nav. Not a crawl failure; verify before chasing it.
 7. Three malformed tokens ship in their CSS and are worth not "fixing" in a
    Match: `--nav-height: calc(3.75rem (var(--gap) * 2))` (missing operator, so
    the variable is invalid), `--gap--med<deleted|variable-…>` (a Webflow
@@ -166,8 +166,8 @@ Full 6-page mirror (the entire design surface; no bulk sections exist), 477
 assets, fonts verified loaded by canvas A/B, zero live references to the origin
 across all 12 built pages, navigation wired between all mirrored pages.
 
-Measured against the reference with the WebGL scene hidden on both sides — the
-deterministic layer — and separately as a distribution for the hero. See the
+Measured against the reference with the WebGL scene hidden on both sides (the
+deterministic layer) and separately as a distribution for the hero. See the
 project's `NOTES.md` for the numbers; the short version is that the static layer
 sits at the reference's own self-similarity ceiling, and the hero sits inside the
 reference-vs-reference distribution, which is the ceiling for a scene that
@@ -175,7 +175,7 @@ randomises its livery every load.
 
 ---
 
-# Addendum — the "What's up on socials" fanned deck (2026-07-31, Transfer)
+# Addendum: the "What's up on socials" fanned deck (2026-07-31, Transfer)
 
 Captured for a Transfer into myRA's /v6. The original entry had the site's
 motion signature but never measured this component.
@@ -191,28 +191,28 @@ measured at 1440:
 | ±2 | ±14° | 0.850 | ±293 | +53 | 2 |
 | ±3 | ±21° | 0.776 | ±400 | +97 | 1 |
 
-Rotation is a clean 7°/step; scale and offset are **not** on any formula —
-transcribe them. Section heading is the site's split register (Mona Sans 32/700
+Rotation is a clean 7°/step; scale and offset are **not** on any formula.
+Transcribe them. Section heading is the site's split register (Mona Sans 32/700
 uppercase + the serif line), with the deck bleeding below the fold.
 
 Verified reconstruction check: rotating the base box 21° at scale 0.776
 yields exactly the measured 323×412 outer bounding box.
 
-> **⚠ 2026-08-17 CORRECTION — this addendum was wrong about motion.** It
+> **⚠ 2026-08-17 CORRECTION: this addendum was wrong about motion.** It
 > originally read "No shadow, no transition, no animation, no hover state: it
 > is a static fan." **The deck has a scroll-triggered entrance AND a rich
 > per-card hover**, both GSAP. The error came from measuring only the settled
 > end-state and inferring "static" from a still. See the section below, which
 > is read from the site's own bundle source and supersedes that sentence.
-> Standing lesson: **never conclude "no motion" from geometry alone** — a
+> Standing lesson: **never conclude "no motion" from geometry alone**; a
 > settled end-state is indistinguishable from a static layout. Confirm against
 > the bundle or a runtime tween list before writing "no animation" into an entry.
 
 ---
 
-# Addendum 2 — the socials deck's REAL motion (2026-08-17, source-read)
+# Addendum 2: the socials deck's REAL motion (2026-08-17, source-read)
 
-**Motion fidelity for this component: `spec`.** Not measured off the DOM —
+**Motion fidelity for this component: `spec`.** Not measured off the DOM;
 extracted from `lando.itsoffbrand.io/dev-js/lando.OFF+BRAND.gold-android-fix-03.js`
 (search `data-social-callout`, ~offset 1.24MB). This is the authoritative version.
 
@@ -265,7 +265,7 @@ A closed stack rises 10rem (0.8s `power2.out`, 0.5s stagger **from "end"**),
 then **overlapping by 0.4s** fans open (1.2s `elastic.out(1,0.75)`, 0.2s stagger
 **from "center"**). `opacity` is 1 throughout: there is no fade, only travel.
 
-## Hover — the part that was missing entirely
+## Hover: the part that was missing entirely
 
 Installed only `onComplete` of the entrance. Per-card `mouseenter`/`mouseleave`
 plus a container-level `mouseleave`. `E` = centre index = `floor(n/2)`.
@@ -294,7 +294,7 @@ immediately with no debounce.
 **The behavioural headline, and the thing a still cannot show you:** the hovered
 card **does not translate to centre and does not straighten**. It keeps its own
 x and its own fan angle, lifts 2.5rem, grows 8%, and *shoves its neighbours
-outward* — the fan opens around the pointer. Any rebuild that snaps the hovered
+outward*: the fan opens around the pointer. Any rebuild that snaps the hovered
 card to centre/rotation-0/scale-1.1 is a different interaction, and reads as a
 jump. `overwrite:"auto"` + the 50ms debounce are what keep it from flickering
 between adjacent cards; there is no nearest-centre hit-testing anywhere.
@@ -321,12 +321,12 @@ last-card special case all reproduce.
 1. **framer-motion does not read a `transform` shorthand string back out of
    the DOM.** It keeps its own record of `x/y/rotate/scale` per element. Seed
    the pre-entrance state with `animate(el, {...}, {duration: 0})`, never
-   `el.style.transform = "translate(0px,130px)…"` — with the hand-written
+   `el.style.transform = "translate(0px,130px)…"`; with the hand-written
    string framer believed `y` was still 0, saw a target of 0, and applied it in
    one frame, so the closed stack **snapped** instead of rising (y went 130→0
    inside 63ms against a 0.8s tween).
 2. **Two `animate()` calls created in the same tick both claim a shared
-   property immediately** — the second wins at *creation*, not when its `delay`
+   property immediately**: the second wins at *creation*, not when its `delay`
    elapses. Both entrance phases animate `y`, so queueing the fan with a delay
    silently destroyed the rise. GSAP is immune because a timeline instantiates
    each tween when the playhead reaches it; reproduce that by scheduling
@@ -340,7 +340,7 @@ Occlusion math for anyone re-skinning it (AABB half-extent
 `(w·cosθ + h·sinθ)/2`, each card occluded by its inner neighbour): visible
 strips are ~164px (±1), ~154px (±2), ~110px (±3) of page width. Design each
 flanking card as ONE dominant form anchored to the outer edge and bleeding
-inward — anything neatly contained gets guillotined by the neighbour.
+inward; anything neatly contained gets guillotined by the neighbour.
 
-Gotcha: the heading text uses a **curly apostrophe** ("what's up") — a
+Gotcha: the heading text uses a **curly apostrophe** ("what's up"); a
 straight-quote regex finds nothing. Match on "on socials" instead.

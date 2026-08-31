@@ -3,7 +3,7 @@
 **Callable as: Rivian** (aliases: rivian)
 
 EV manufacturer. Captured 2026-08-16 @ 1440x900, headless Chrome over CDP,
-hooks installed pre-load. Path taken: **motion-only capture** — taken as a
+hooks installed pre-load. Path taken: **motion-only capture**, taken as a
 second data point on how automotive OEM homepages spend their motion budget,
 not as a build donor.
 
@@ -15,7 +15,7 @@ with a donor that has the proportional systems.
 
 **Motion fidelity: partial**
 
-Page height 16,443px — a genuinely long scrolling homepage. **13 animations
+Page height 16,443px: a genuinely long scrolling homepage. **13 animations
 kept, 0 zero-duration dropped, and `scrollTriggered: 0`.**
 
 That zero is the finding. On a 16,443px page, across 14 scroll steps, with hooks
@@ -29,7 +29,7 @@ Easing by count: `cubic-bezier(0.4, 0, 0.6, 1)` 5 · `linear` 2 · `ease-in-out`
 Durations: 2000ms x5 · 1400 x4 · 300 x2 · 400 x1 · 500 x1.
 
 `cubic-bezier(0.4, 0, 0.6, 1)` and `animate-pulse` are **Tailwind defaults**,
-not authorship — the class names in the captured targets are Tailwind utilities
+not authorship. The class names in the captured targets are Tailwind utilities
 (`animate-pulse`, `bg-accent`, `col-start-3`, `min-h-[var(--consumer-ui-navbar-toolbar-height)]`).
 Read them as framework, the same way FintechX settled the Framer/Motion
 defaults question.
