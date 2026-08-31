@@ -366,6 +366,22 @@ everyone else's.
 - Systo: [www.systo-ai.com](https://www.systo-ai.com)
 - Systo Commerce: [systo-commerce.vercel.app](https://systo-commerce.vercel.app)
 
+## Related Systo skills
+
+Swipefile handles websites. The rest of the family handles motion and render work,
+and they hand off to each other:
+
+- [**motion-graphics-director**](https://github.com/systoai-design/motion-graphics-director) is the process layer for
+  any video build, five gates that run before a line of composition code
+- [**motion-brief**](https://github.com/systoai-design/motion-brief) turns a video reference into a script and
+  direction document, the way this skill turns a site into a design system
+- [**manifesto**](https://github.com/systoai-design/manifesto) replicates a video frame for frame by measurement,
+  the motion equivalent of a Match
+- [**hyperframes-render-discipline**](https://github.com/systoai-design/hyperframes-render-discipline) verifies a
+  finished render, and carries the capture rules this skill's `capture.py` relies on
+- [**threejs-scroll-sites**](https://github.com/systoai-design/threejs-scroll-sites) for building the scroll-driven
+  3D work a capture might be pointed at
+
 ---
 
 *Read `SKILL.md` for the actual procedure. This file is the pitch; that one is
