@@ -41,14 +41,14 @@ Census at 1440 (size / weight / line-height / letter-spacing / count):
 | 9.9px / 500 / normal / 1.35px | 31 | small uppercase UI label (nav / dock) |
 | 13.3333px / 400 / normal / normal | 10 | secondary UI text |
 | 56.7px / 300 / 58.5px / -0.36px | 5 | hero headline (h1 + 2 spans + 2 nested `i`) |
-| 13.95px / 300 / normal / normal | 2 | – |
+| 13.95px / 300 / normal / normal | 2 | - |
 | 23.58px / 400 / 24.3px / -0.45px | 2 | card-title tier (2 `h2`s) |
 | 12.15px / 300 / 17.1px / normal | 2 | `p.label` tier (2 labels) |
 | 12.15px / 600 / 18.9px / normal | 2 | `dt` stat-label tier (2 stat blocks) |
-| 9.9px / 400 / normal / 3.96px | 2 | – |
-| 16px / 400 / normal / normal | 1 | – |
+| 9.9px / 400 / normal / 3.96px | 2 | - |
+| 16px / 400 / normal / normal | 1 | - |
 | 279px / 400 / 217.62px / 27px | 1 | background wordmark glyph |
-| 14.85px / 300 / 19.8px / normal | 1 | – |
+| 14.85px / 300 / 19.8px / normal | 1 | - |
 
 The 279px wordmark row is the same element the font-gate canvas probe measured
 at size **276** (its own `census` field, unitless). A real, small, expected
@@ -202,18 +202,18 @@ the capture ran with reduce off, so what it disables is unverified.
 
 | Name | Target | Trigger | From → To | Duration | Easing | Stagger | Scroll start/end |
 |---|---|---|---|---|---|---|---|
-| Canvas fade-in (1) | `canvas#scene` | load, delay 0ms | `opacity 0→1` | 450ms | `--ease` | – | N/A, no scroll |
-| Dock fade-in (1) | `nav.dock` container | load, delay 80ms | `opacity 0→1` | 800ms | `--ease` | – | N/A |
+| Canvas fade-in (1) | `canvas#scene` | load, delay 0ms | `opacity 0→1` | 450ms | `--ease` | - | N/A, no scroll |
+| Dock fade-in (1) | `nav.dock` container | load, delay 80ms | `opacity 0→1` | 800ms | `--ease` | - | N/A |
 | Dock-item reveal (5) | 5 dock nav items (logo + 4 links) | load, delays 120/180/230/280/330ms | `clip-path inset(0 0 105%)→inset(0 0 -30%)` | 900ms | `--ease-out` | 60/50/50/50ms | N/A |
 | Panel reveal group (4) | lede paragraph, 2 stat blocks, scroll-cue link | load, delays 480/700/770/1040ms | `clip-path inset(100% 0 0)→inset(0)` | 1050ms | `--ease-out` | 220/70/270ms (irregular, hand-timed) | N/A |
-| Pill-badge reveal (1) | primary CTA pill mask | load, delay 600ms | `clip-path inset(100% 0 0 round 133.5px)→inset(0 round 133.5px)` | 1050ms | `--ease-out` | – | N/A |
+| Pill-badge reveal (1) | primary CTA pill mask | load, delay 600ms | `clip-path inset(100% 0 0 round 133.5px)→inset(0 round 133.5px)` | 1050ms | `--ease-out` | - | N/A |
 | Card reveal (2) | the two content cards | load, delays 760/880ms | `clip-path inset(100% 0 0 round 40.94px)→inset(0 round 40.94px)` | 1050ms | `--ease-out` | 120ms | N/A |
 | Circular iris reveal (3) | float-icon knob, play-glass, play-ring | load, delays 840/900/1100ms | `clip-path circle(0% at 50% 50%)→circle(76% at 50% 50%)` | 1100ms | `--ease-out` | 60/200ms | N/A |
 | Headline opacity (2) | the 2 headline lines | load, delays 260/360ms | `opacity 0→1` | 1050ms | `--ease` | 100ms | N/A |
 | Headline rise (2) | same 2 headline lines | load, delays 260/360ms (paired with row above) | `transform translateY(14.24px)→none` | 1250ms | `--ease-out` | 100ms | N/A |
 | Watermark + guide fade (2) | background wordmark glyph, decorative guide lines | load, delays 900/1150ms | `opacity 0→1` | 1300ms | `--ease` | 250ms | N/A |
 | Portal-cut image wipe (2) | the 2 card thumbnail media layers | load, delays 920/1080ms | `clip-path inset(0 100% 0 0 round Nu)→inset(0 0 0 0 round Nu)` | 1450ms | `steps(12)` | 160ms | N/A |
-| Orchestration markers (3) | scroll-track glyph + 2 portal-scan starts | load, delay 0ms | zero-duration: class-toggle hooks, not visible tweens | 0ms | `ease` | – | N/A |
+| Orchestration markers (3) | scroll-track glyph + 2 portal-scan starts | load, delay 0ms | zero-duration: class-toggle hooks, not visible tweens | 0ms | `ease` | - | N/A |
 
 That is all 28: 1+1+5+4+1+2+3+2+2+2+2+3 = 28.
 
