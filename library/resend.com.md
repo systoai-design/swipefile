@@ -2,7 +2,7 @@
 
 **Callable as: Resend** (aliases: resend.com, Resend Motion System)
 
-Transactional-email developer platform. Motion-only audit — type, colour,
+Transactional-email developer platform. Motion-only audit. Type, colour,
 spacing and layout were not captured, so this entry cannot carry a build on its
 own; it is a motion donor.
 
@@ -10,7 +10,7 @@ own; it is a motion donor.
 
 Downgraded from the `spec` this entry originally claimed. `spec` is the only
 value that licenses building a page's motion from the entry, and it requires a
-per-animation mapping — target, trigger, from→to, duration, easing, stagger.
+per-animation mapping: target, trigger, from→to, duration, easing, stagger.
 What is below is a *census*: ranked curves, duration frequencies, two scroll
 offsets and two interaction states. Those are real measured numbers, which is
 why this is `partial` and not `signature-only`, but there is no mapping, so

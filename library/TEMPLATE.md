@@ -3,7 +3,7 @@
 Every `<domain>.md` follows this shape. Uniformity is the point: the library is
 read by agents (and fed to local models) that have never seen the site and
 cannot visit it. Every value is **measured, not estimated**; every claim stands
-alone without the mirror. No body copy, no imagery, no assets — knowledge only.
+alone without the mirror. No body copy, no imagery, no assets: knowledge only.
 
 Omit a section only when it truly does not apply, and say why in one line
 ("No 3D: none present"). An empty heading is better than an invented value.
@@ -105,7 +105,7 @@ width-test, what was excluded and what remains unresolved.>
 4. **Knowledge, never content.** No copy, no image files, no logos, no excerpts
    of text beyond what a measurement requires (a headline's character count is
    knowledge; the headline is content).
-5. **Cross-site patterns live in INDEX.md, not here** — and only once two or
+5. **Cross-site patterns live in INDEX.md, not here**, and only once two or
    more entries support them, each cited by name.
 6. **After writing:** add the one-line row to `INDEX.md` (site, date, path,
    signature motion, notable).

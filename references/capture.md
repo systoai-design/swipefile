@@ -9,7 +9,7 @@ Google's official MCP server. Drives a real Chrome via the DevTools Protocol, so
 you get computed styles, hover states, breakpoints, and screenshots without
 asking the user to do anything.
 
-If it isn't connected, offer the install — it's one command:
+If it isn't connected, offer the install. It's one command:
 
 ```
 claude mcp add chrome-devtools --scope user npx chrome-devtools-mcp@latest
@@ -62,7 +62,7 @@ Same shape as path 1 with whatever the equivalent tools are called. The
 non-negotiables are: scroll before extracting, run the extractor script, capture
 hover states, and screenshot at more than one width.
 
-## 4. Chat only — the user is your browser
+## 4. Chat only: the user is your browser
 
 Send everything needed in **one message**. Requesting artifacts one at a time
 across several turns is how this workflow stalls out.
@@ -130,8 +130,8 @@ see the copying section in `SKILL.md` before anything gets published.
 
 ## Full-page screenshots: tile, don't resize
 
-The usual full-page trick — read `document.documentElement.scrollHeight`, set the
-viewport to that height, then `captureBeyondViewport` — **re-lays-out every
+The usual full-page trick (read `document.documentElement.scrollHeight`, set the
+viewport to that height, then `captureBeyondViewport`) **re-lays-out every
 `100vh` / `min-height: 100dvh` section**, so each becomes a full *page* tall and
 the image explodes. Measured twice in one session: a Framer template went
 16,740px → 111,780px, and a Divi page 7,907px → 12,943px. Nothing errors. You
@@ -145,7 +145,7 @@ Capture **viewport-sized tiles at fixed scroll positions** instead:
 3. Shoot at `y = 0, h, 2h …`, scrolling between shots and pausing ~0.8s.
 
 Only reach for the resize trick on a page you have confirmed has no viewport
-units in its section heights — and confirm, don't assume.
+units in its section heights (and confirm, don't assume).
 
 Related, and it costs about twenty minutes every time: `/json/version`'s
 `webSocketDebuggerUrl` is the **browser**-level CDP endpoint and has no
@@ -156,40 +156,40 @@ Related, and it costs about twenty minutes every time: `/json/version`'s
 ## Consent banners
 
 A cookie or consent overlay will sit in front of the design and wreck any
-comparison. Dismiss it before capturing — choose the decline/reject option, not
-accept — and if it cannot be dismissed in your capture path, crop that band off
+comparison. Dismiss it before capturing (choose the decline/reject option, not
+accept), and if it cannot be dismissed in your capture path, crop that band off
 **both** images before diffing.
 
 ## Reading the extraction
 
-`blockedStylesheets` above zero means cross-origin CSS was unreadable —
+`blockedStylesheets` above zero means cross-origin CSS was unreadable;
 `cssRules` throws on it. CDN-hosted stylesheets and some font services land here,
 so ask about anything the tokens don't explain.
 
 `sampled` values are ordered by frequency, with counts. The top entries are the
 system; the long tail is usually one-off content styling. In Adapt mode the
-counts matter more than the values — they tell you which sizes and colors carry
+counts matter more than the values: they tell you which sizes and colors carry
 structural weight.
 
 `mediaConditions` is the real breakpoint list. Use it to decide which widths to
 re-capture at rather than guessing 768/1024.
 
-`fontFaces` shows which typefaces are actually loaded — for a Match that is your
+`fontFaces` shows which typefaces are actually loaded. For a Match that is your
 fetch list, not a shortlist of things to find lookalikes for. Substitution is an
 Adapt decision, or one forced by an artifact that will be published.
 
 `liveAnimations` is empty if the page wasn't scrolled first. If it's empty and
-`keyframes` isn't, that's the likely cause — scroll and re-run.
+`keyframes` isn't, that's the likely cause. Scroll and re-run.
 
 ## Third-party extractors
 
-There's a small ecosystem of dedicated tools — `dembrandt`, `designlang`,
-`extract-design-system` — that wrap Playwright and emit W3C DTCG tokens,
+There's a small ecosystem of dedicated tools (`dembrandt`, `designlang`,
+`extract-design-system`) that wrap Playwright and emit W3C DTCG tokens,
 Tailwind configs, and Figma variables, some with their own MCP servers. Several
 advertise interaction-state and multi-breakpoint capture.
 
 They may be faster than the bundled scripts for token-heavy work. They are also
 unvetted third-party dependencies that run a headless browser against a URL, and
-none of them is required — the scripts here cover the same ground with no
+none of them is required. The scripts here cover the same ground with no
 install. If you reach for one, say so, and check its output rather than trusting
 it wholesale.

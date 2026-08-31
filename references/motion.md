@@ -1,7 +1,7 @@
 # Motion
 
 Raw extraction output is not a spec. Convert it into the form below and confirm
-it before building — vague motion descriptions are what let a rebuild drift.
+it before building. Vague motion descriptions are what let a rebuild drift.
 
 ## Spec template
 
@@ -53,7 +53,7 @@ motion starts registering as latency.
 
 ## Springs: use linear(), not a bezier approximation
 
-A cubic-bezier is a single S-curve — it cannot cross itself, so it can't
+A cubic-bezier is a single S-curve: it cannot cross itself, so it can't
 overshoot and settle. Any real spring or bounce approximated with one loses the
 thing that made it feel good.
 
@@ -85,7 +85,7 @@ it's on by default in Nightly and a named Interop 2026 priority. Global support
 sits around 83%, so it is **not** Baseline.
 
 It's still usually the right choice, because the failure mode is "no animation"
-rather than "broken page" — provided you write it in this order:
+rather than "broken page", provided you write it in this order:
 
 ```css
 /* revealed state is the default, so unsupported browsers show content */
@@ -101,12 +101,12 @@ rather than "broken page" — provided you write it in this order:
 ```
 
 Write the finished state as the default and layer the motion on top. Getting this
-backwards — animating from `opacity: 0` with no fallback — hides content
+backwards (animating from `opacity: 0` with no fallback) hides content
 entirely in Firefox stable.
 
 Keep animated properties to `transform` and `opacity`; those run on the
 compositor. Animating `width`, `height`, or `margin` triggers layout on every
-frame. Don't add `will-change` preemptively — the browser promotes layers on its
+frame. Don't add `will-change` preemptively; the browser promotes layers on its
 own.
 
 `animation-trigger` is Chrome/Edge only. Don't reach for it in a rebuild meant
@@ -118,16 +118,16 @@ to work anywhere.
 maps cleanly onto `IntersectionObserver` plus a class toggle. A scrubbed one
 (progress tied to scroll position) needs `animation-timeline: view()` or a
 scroll listener driving a custom property. Don't rebuild a scrubbed animation as
-a triggered one — the feel is completely different.
+a triggered one. The feel is completely different.
 
 **Framer Motion → CSS.** `whileInView` is `IntersectionObserver`. Variants with
 `staggerChildren` become `transition-delay` computed per index. `layout`
-animations have no CSS equivalent — they need FLIP or the View Transitions API.
+animations have no CSS equivalent: they need FLIP or the View Transitions API.
 Springs go through `linear()`, per above.
 
 **Lenis / Locomotive.** These smooth the scroll itself. If the reference feels
 weighty and slightly delayed as you scroll, that's the library, not the
-animations — no amount of easing work on individual elements reproduces it.
+animations; no amount of easing work on individual elements reproduces it.
 Either pull in Lenis or tell the user native scroll is what you're shipping.
 
 ## Reduced motion
@@ -145,7 +145,7 @@ Every build gets this, whether or not the reference has it:
 }
 ```
 
-Make sure end states stay reachable — anything animating in from `opacity: 0`
+Make sure end states stay reachable: anything animating in from `opacity: 0`
 must still end up visible when motion is suppressed. Writing the revealed state
 as the default (as in the `@supports` pattern above) gets you this for free. A
 reduced-motion user staring at a blank page is worse than the animation was.
