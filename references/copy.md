@@ -9,12 +9,12 @@ the engines that increasingly decide what gets cited.
 it: who owns the copy, where the rewrite guidance lives, and what a page has to
 state to be quotable.
 
-## 1. Who owns the copy — settle this before anything else
+## 1. Who owns the copy: settle this before anything else
 
 Copy ownership follows the job, and the two cases are opposites. Conflating them
 is the sharp edge of this whole file.
 
-**Match — the copy is the reference's, captured verbatim, and is never
+**Match: the copy is the reference's, captured verbatim, and is never
 rewritten.** Not improved, not tightened, not "humanized", not corrected. Text is
 data already in the DOM and it is captured programmatically in either path
 (mirror or hand-rebuild). Rewriting it corrupts the replication and destroys the
@@ -27,7 +27,7 @@ up as helpfulness rather than laziness, which is why it survives review.
 `copy-gate.py --match` skips the prose checks for exactly this reason, and prints
 a note saying it did.
 
-**Adapt, Brand, and from-scratch — the copy is newly written, therefore ours,
+**Adapt, Brand, and from-scratch: the copy is newly written, therefore ours,
 therefore checked.** This is the only path where the prose gate applies. In the
 two-URL Adapt form the copy is the *user's own*, crawled from their site; that is
 still not the reference's copy, and anything you write to bridge the gap is yours
@@ -35,7 +35,7 @@ and gets checked with the rest.
 
 | Job | Copy source | Prose gate | SEO / GEO gate |
 |---|---|---|---|
-| Match | Captured verbatim from the reference | **Never** — `--match` | Reported; see below |
+| Match | Captured verbatim from the reference | **Never**: `--match` | Reported; see below |
 | Adapt (brief) | Newly written for the user's subject | Yes | Yes |
 | Adapt (two-URL) | The user's own, plus anything new you write | Yes, on what you wrote | Yes |
 | Transfer | Whatever the user's page already says | Untouched unless they ask | Their page, their call |
@@ -45,20 +45,20 @@ and gets checked with the rest.
 **A supplied copy document is not the same case as "newly written," even on a
 from-scratch build with no second URL to crawl.** `design-intake`'s copy field
 is exactly this: a doc, a PDF, or pasted text the user wants used verbatim, not
-a brief to write from. Copy that arrived this way is theirs — capture it
+a brief to write from. Copy that arrived this way is theirs. Capture it
 section by section the same way a two-URL Adapt captures the user's own site,
 and run it through `humanizer` / `copy-gate.py` only for whatever you had to
 write to bridge a gap the document left (a section they didn't cover, a form's
 confirmation microcopy). Running their supplied sentences back through the
 prose gate as if you authored them is the same category of error as rewriting a
-Match — it is not your sentence to correct. Where the document leaves a section
+Match; it is not your sentence to correct. Where the document leaves a section
 unwritten, say so and treat only that section as newly written.
 
 The failure this table prevents: a Match gets "helpfully" reworded on the way
 past, and an exactly verifiable build becomes an unverifiable one. Nobody notices
 until the diff refuses to converge and the cause is three steps back.
 
-**Match mode still reports SEO and GEO, and can still exit 1 on them** — a
+**Match mode still reports SEO and GEO, and can still exit 1 on them**: a
 reference with two `<h1>`s or no meta description hands its defects to the
 mirror. That output is a fact about the reference, not a defect in your copy of
 it. Do not fix it. Adding a JSON-LD block or an invented `alt` string to a mirror
@@ -66,7 +66,7 @@ is a deviation from the reference markup, and `references/report.md` counts
 unexplained markup changes as a gate failure. Record it in the report's honesty
 rows instead.
 
-## 2. Prose — detection here, judgement in `humanizer`
+## 2. Prose: detection here, judgement in `humanizer`
 
 The rewrite guidance already exists and is not duplicated here. The `humanizer`
 skill (`~/.claude/skills/humanizer/SKILL.md`, 622 lines, 33 numbered categories,
@@ -75,8 +75,8 @@ before/after pairs for fixing it.
 
 The split is deliberate:
 
-- **`copy-gate.py` detects.** Only the mechanically detectable subset — ten of
-  humanizer's categories, matched by regex against the page's visible text. Every
+- **`copy-gate.py` detects.** Only the mechanically detectable subset (ten of
+  humanizer's categories, matched by regex against the page's visible text). Every
   finding is labelled with that skill's own heading number so it routes straight
   to the fix.
 - **`humanizer` judges.** Everything the regexes cannot see: rule-of-three
@@ -90,7 +90,7 @@ other skill in the routing table.
 
 What the gate actually watches. A category fails only when occurrences
 **exceed** its budget, and **the budget is a RATE per 1000 words plus a hard
-floor — never an absolute count**:
+floor, never an absolute count**:
 
 ```
 budget = max(floor, round(rate * words / 1000))
@@ -100,8 +100,8 @@ That is the whole point of the design. Two superlatives in a 69-word paragraph
 is egregious; two across a 2000-word page is ordinary English. An absolute
 budget gets one of those wrong, and the one it gets wrong is the short punchy
 marketing copy this gate exists for. The columns below show the rate and floor
-that the code actually holds, plus what they work out to at two page lengths —
-read the rate, not the example.
+that the code actually holds, plus what they work out to at two page lengths.
+Read the rate, not the example.
 
 | humanizer category | Rate /1000 words | Hard floor | Budget @500w | Budget @2000w |
 |---|---|---|---|---|
@@ -116,8 +116,8 @@ read the rate, not the example.
 | 19 curly quotes | 40 | 10 | 20 | 80 |
 | 33 rhetorical opener | 1 | 0 | 0 | 2 |
 | 32 aphorism formula | 1 | 0 | 0 | 2 |
-| 14 em-dash density | — | — | `max(2, words/150)` | `max(2, words/150)` |
-| 31 staccato drama | — | — | run of 4+ short sentences | run of 4+ short sentences |
+| 14 em-dash density | - | - | `max(2, words/150)` | `max(2, words/150)` |
+| 31 staccato drama | - | - | run of 4+ short sentences | run of 4+ short sentences |
 
 The prose pass runs on **visible text only**. HTML comments, `<script>`,
 `<style>`, `<svg>` and `<noscript>` are stripped first, because a build's own
@@ -126,7 +126,7 @@ phantom findings about text no reader ever sees.
 
 **The honest baseline: on the two builds measured when this gate was written, the
 classic tells scored at or near zero.** The prose was not the problem. That is
-worth stating plainly, because it says where the real gap was — not in the
+worth stating plainly, because it says where the real gap was, not in the
 adjectives, but in the layer below: no structured data, thin specifics, SEO
 essentials left to chance. Do not read a clean prose pass as a clean content
 layer.
@@ -149,10 +149,10 @@ weakens it. Failures exit non-zero; warnings never do.
 | `alt` on every `<img>` | **FAIL** | Accessibility first, indexing second. An image with no alt is invisible to a reader who cannot see it. |
 
 An `alt` is a failure when the attribute is **absent**. `alt=""` is a valid,
-deliberate answer for decorative images and passes — say nothing about an image
+deliberate answer for decorative images and passes. Say nothing about an image
 that says nothing.
 
-## 4. GEO — generative engine optimisation
+## 4. GEO: generative engine optimisation
 
 The part nothing else in this skill covered, and the part with the worst measured
 record: **structured data was absent on 2 of 2 measured builds.**
@@ -174,15 +174,15 @@ attached. It is also the one defect here that survives every visual check.
 
 The gate parses each `application/ld+json` block and lists the `@type`s it found
 as a note; a block that does not parse is a warning, because malformed JSON-LD is
-read by nothing and is worse than none — it looks done.
+read by nothing and is worse than none; it looks done.
 
 Three things beyond the markup, and they are writing decisions, not tagging ones:
 
 1. **Concrete figures, dates and named entities are what gets quoted.** "Batch
    0412 charged at 195C, first crack at 9:05" is quotable; "expertly roasted" is
-   not. The gate warns when fewer than 1% of a page's words are numeric — a blunt
+   not. The gate warns when fewer than 1% of a page's words are numeric (a blunt
    proxy, deliberately blunt, and it fires on exactly the pages that have nothing
-   specific to say.
+   specific to say).
 2. **Headings should answer real questions.** A heading that states the question
    a reader actually asked gives an engine a retrievable unit. A one-word section
    label gives it nothing to anchor to.
@@ -203,7 +203,7 @@ python3 copy-gate.py index.html --json     # same findings, machine-readable
 ```
 
 Exit **0** when there are zero failures, **1** when there is at least one.
-Warnings and notes never change the exit code — a gate that cries wolf gets
+Warnings and notes never change the exit code: a gate that cries wolf gets
 ignored, which is the failure the whole file exists to prevent.
 
 Output is three tiers: `note` (what was found, including the JSON-LD types and
@@ -213,14 +213,14 @@ routing line naming `humanizer` as the place to fix them.
 
 **Where it sits:** after Step 3, before you show the user anything.
 
-- **Adapt / Brand / from-scratch** — run it clean before the feel-check in
+- **Adapt / Brand / from-scratch**: run it clean before the feel-check in
   `references/adaptation.md`. Fix prose findings by loading `humanizer`, not by
   deleting the offending word and moving on.
-- **Match** — run it with `--match` alongside the report gates. Findings describe
+- **Match**: run it with `--match` alongside the report gates. Findings describe
   the reference; carry them into the report's honesty rows rather than editing
   the mirror.
 
 `scripts/selftest.py` covers it: a deliberately sloppy fixture must fail on named
 categories, and a clean fixture must pass with zero prose findings. Both
-directions matter — a gate that misses obvious slop is useless, and a gate that
+directions matter: a gate that misses obvious slop is useless, and a gate that
 fails clean copy gets switched off.
