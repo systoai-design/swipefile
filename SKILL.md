@@ -40,7 +40,7 @@ use. Ship an Adapt for a Match request and you have wasted their time with a
 rough sketch when they asked for the real thing — and that is the far more common
 failure, because it is the one that feels safe.
 
-Both modes share Steps 1–4 below. Adapt inserts one extra step before building;
+Both modes share Steps 1-4 below. Adapt inserts one extra step before building;
 see `references/adaptation.md`.
 
 **Adapt also picks up a second rulebook, and the order between them is fixed.**
@@ -96,6 +96,15 @@ deliverable *is* the extraction, written twice for two readers:
    duration, easing, stagger, scroll offsets, and the mechanism — with the
    library *confirmed by probing runtime globals*, never by grepping bundle
    comments, which routinely name-drop libraries the site doesn't run.
+
+3. **What it costs at rest**, when the site animates. Measure idle CPU/GPU with
+   the tab focused and nothing being touched, and count infinite animations
+   (CSS `animation-iteration-count: infinite`, unpaused rAF loops, always-on
+   canvases). This is a real audit dimension, not a footnote: one site sat at
+   43-74% CPU with no input from ~31 infinite CSS animations, and a Cesium globe
+   burned ~60% GPU with a parked camera and zero data layers. A reference whose
+   look depends on permanent motion is a reference you are quoting a battery
+   cost on, so say so before the client falls in love with it.
 
 Run Step 1 capture + Step 2 motion spec, skip build and diff, and still write
 the library entry — an audit feeds the library exactly like a clone does. If
@@ -392,6 +401,23 @@ Pick the strongest path available:
 | **Nothing connected, but Chrome is installed** | `python3 scripts/cdp-run.py <url> <script.js>` — real headless Chrome over CDP, needs only the `websockets` package. This is the **measurement instrument**: prefer it over any pane for numbers you intend to keep. Do NOT substitute `chrome --headless --virtual-time-budget --dump-dom`; it scrolls but never fires `IntersectionObserver`, so every scroll reveal reports as "no motion" — measured as 0 animations on a fixture with 10 |
 | Playwright or Puppeteer installed | Run `scripts/capture.py` |
 | Chat only, no browser access | Send the user `scripts/extract-console.js` to paste into DevTools |
+
+**Canvas and WebGL heroes are a blind spot in the extraction, by construction.**
+None of the CSS-token machinery describes a `<canvas>`: a three.js hero extracts
+as a single element with a background colour, so a Match built from that capture
+silently drops the thing the reference is actually known for. Two rules:
+
+- `scripts/capture.py` now launches with a real GPU path
+  (`--enable-gpu --ignore-gpu-blocklist --enable-unsafe-swiftshader`, plus the
+  platform's ANGLE backend). Without those, headless Chromium software-renders
+  and a WebGL hero captures as a **black rectangle that looks like a design
+  choice**. Verified: with the flags, `get.webgl.org` reports "Your browser
+  supports WebGL" during capture.
+- Every capture records a **canvas census** (`canvases` in `extraction-W.json`:
+  buffer and CSS dimensions per canvas), and any canvas ≥200×200 CSS px prints a
+  warning. When it fires, open `full-W.png` and confirm the canvas rendered
+  before trusting the capture, then describe the 3D content in prose, because it
+  will not be in the tokens.
 
 Motion and fonts have dedicated extractors, and both are two-sided or two-phase
 for reasons that bite silently otherwise:
