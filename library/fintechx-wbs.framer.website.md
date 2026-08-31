@@ -22,10 +22,10 @@ names, so band identification has to run on geometry).
 
 | Role | Family | Size / LH | Weight | Tracking |
 |---|---|---|---|---|
-| Hero H1 | **Bricolage Grotesque** | 100px | 600 | – |
+| Hero H1 | **Bricolage Grotesque** | 100px | 600 | - |
 | Section H2 | **Bricolage Grotesque** | 48 / 57.6 (1.2) | 600 | **-1px** |
-| H3 | Bricolage Grotesque | 32px | 600 | – |
-| H4 | Bricolage Grotesque | 24px | 600 | – |
+| H3 | Bricolage Grotesque | 32px | 600 | - |
+| H4 | Bricolage Grotesque | 24px | 600 | - |
 | Sub / button label | Inter Display | 18 / 23.4 (1.3) | 500 / 600 | normal |
 | Card body | Inter Display | 16 / 20.8 (1.3) | 500 | normal |
 | Eyebrow, pill labels | Inter Display | 14 / 18.2 (1.3) | 500 | normal |
