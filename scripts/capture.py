@@ -22,6 +22,29 @@ EXTRACTOR = pathlib.Path(__file__).with_name("extract-console.js")
 MAX_SCROLL_SHOTS = 12      # screenshots kept, not how far we scroll
 MAX_SCROLL_STEPS = 400     # runaway guard for infinite-scroll pages only
 
+# Headless Chromium falls back to software rendering, which makes a WebGL hero
+# capture as a black rectangle - the extraction still "succeeds" and the shot
+# looks like a design choice rather than a failed capture. These flags put a
+# real GPU path behind the canvas; the swiftshader line is the fallback for
+# machines with no usable GPU, so a canvas site degrades to slow-but-correct
+# instead of blank. ANGLE backend is platform-specific: d3d11 on Windows,
+# metal on macOS, and the default (GL) elsewhere.
+_ANGLE = {"win32": "d3d11", "darwin": "metal"}.get(sys.platform)
+LAUNCH_ARGS = [
+    "--enable-gpu",
+    "--ignore-gpu-blocklist",
+    "--enable-unsafe-swiftshader",
+] + ([f"--use-angle={_ANGLE}"] if _ANGLE else [])
+
+# Probing a canvas' context type can CREATE a context on an unused canvas, so
+# this only measures geometry. Size is enough to flag "there is a canvas here,
+# go look at the PNG before trusting this capture."
+CANVAS_CENSUS_JS = """() => [...document.querySelectorAll('canvas')].map(c => {
+  const r = c.getBoundingClientRect();
+  return { bufferW: c.width, bufferH: c.height,
+           cssW: Math.round(r.width), cssH: Math.round(r.height) };
+})"""
+
 
 def capture_at_width(page, js, width, height, out_dir, scroll_shots):
     """Extract and screenshot at one viewport width. Returns the extraction dict."""
@@ -65,6 +88,20 @@ def capture_at_width(page, js, width, height, out_dir, scroll_shots):
     # the file with `return` instead hits automatic semicolon insertion on its
     # leading block comment and silently yields undefined.
     data = page.evaluate("() => {" + js + "\n return window.__designCapture }")
+
+    # Canvas census travels with the extraction so the library records that this
+    # reference had a canvas at all - a Match built from a capture whose hero was
+    # a dead canvas is the failure this catches.
+    canvases = page.evaluate(CANVAS_CENSUS_JS)
+    data["canvases"] = canvases
+    big = [c for c in canvases if c["cssW"] >= 200 and c["cssH"] >= 200]
+    if big:
+        largest = max(big, key=lambda c: c["cssW"] * c["cssH"])
+        print(f"warning: {len(canvases)} canvas element(s) at {width}px, largest "
+              f"{largest['cssW']}x{largest['cssH']} CSS px. Canvas/WebGL content is "
+              f"NOT described by the extracted tokens - open full-{width}.png and "
+              f"confirm it rendered before trusting this capture.", file=sys.stderr)
+
     (out_dir / f"extraction-{width}.json").write_text(json.dumps(data, indent=2))
     page.screenshot(path=out_dir / f"full-{width}.png", full_page=True)
     return data
@@ -84,7 +121,7 @@ def capture(url, out_dir, selector, breakpoints, height, scroll_shots):
     results = {}
 
     with sync_playwright() as p:
-        browser = p.chromium.launch()
+        browser = p.chromium.launch(args=LAUNCH_ARGS)
         page = browser.new_page(viewport={"width": max(breakpoints), "height": height})
         try:
             page.goto(url, wait_until="networkidle", timeout=60_000)
