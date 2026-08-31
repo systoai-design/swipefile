@@ -4,12 +4,12 @@
 
 Captured 2026-07-30. Product/agency site for a "space where ideas get executed".
 Next.js + Tailwind, server-rendered (204KB HTML, 14,191 characters of text in the
-raw response). Captured for **Adapt**, not Match — the deliverable was a rebrand,
+raw response). Captured for **Adapt**, not Match. The deliverable was a rebrand,
 so this entry records the system and none of the content.
 
 ## Stack
 
-Next.js, Tailwind utility classes in the markup, and — notably — **no JS
+Next.js, Tailwind utility classes in the markup, and, notably, **no JS
 animation library at all**. `window.gsap`, `window.ScrollTrigger`,
 `window.Motion`, `window.Lenis` and `window.THREE` are all undefined. Every
 transition is CSS, driven from an unusually complete token set. After two Framer
@@ -20,7 +20,7 @@ and much easier to learn from.
 page gates itself behind an intro before releasing scroll. Scroll the page fully
 before extracting or the section geometry reads as empty.
 
-## Tokens — the architecture is the lesson
+## Tokens: the architecture is the lesson
 
 59 custom properties, and the motion half is the most reusable token set in the
 library so far. Not one duration or curve is left implicit:
@@ -47,7 +47,7 @@ Note the site carries **two palettes**: a warm editorial one
 (`--sig-paper #fbfbf9`, `--sig-ink #12151a`, `--sig-signal #2f6bff`,
 `--sig-verified #1f9d6b`, `--sig-slate #5b6472`) with its own display scale
 `clamp(2.25rem, 4.6vw, 4.25rem)` at leading `.98` / tracking `-.035em`. Two
-design languages coexisting in one stylesheet — worth checking for before
+design languages coexisting in one stylesheet, worth checking for before
 assuming a single system.
 
 Root font-size is a flat **16px**; no fluid rem driver.
@@ -57,17 +57,17 @@ Root font-size is a flat **16px**; no fluid rem driver.
 Three families, three roles: **Fraunces** display (20/24/30/48px, weight 400
 only), **Geist** UI and body (10–16px, the workhorse at 14px/400 with 60
 occurrences), **Geist Mono** for small metadata (10.5/14px). The serif appears
-*only* at display sizes — the same discipline measured on osa.framer.website
+*only* at display sizes, the same discipline measured on osa.framer.website
 (Instrument Serif only at 46–54px). Two independent confirmations now.
 
 ## Motion character
-**Motion fidelity: signature-only** — Two curves with use counts, a duration cluster and a character sentence. The stagger and travel ladders noted in INDEX are a vocabulary, not a mapping.
+**Motion fidelity: signature-only**. Two curves with use counts, a duration cluster and a character sentence. The stagger and travel ladders noted in INDEX are a vocabulary, not a mapping.
 
 
 Durations cluster at 150/200/400ms with a 1200ms outlier; the two highest-count
 curves in the stylesheet are `cubic-bezier(.22,1,.36,1)` and
 `cubic-bezier(.16,1,.3,1)` (four uses each). Character: quick, soft-landing,
-nothing showy — motion supports reading rather than performing. No scroll-jacking
+nothing showy; motion supports reading rather than performing. No scroll-jacking
 and no smooth-scroll library, so the page feels native.
 
 `prefers-reduced-motion` **is** handled, including Tailwind's
@@ -82,23 +82,23 @@ landonorris.
 - **Border-delimited bands with alternating fill**: `border-t border-border/40`
   plus `bg-card/30` on alternates, `py-24 md:py-32` (96/128px) throughout, and a
   `max-w-3xl` prose measure. 19 sections held together by nothing more than that
-  rhythm — no second layout system anywhere. This pacing is most of why the page
+  rhythm: no second layout system anywhere. This pacing is most of why the page
   reads unhurried, and it is the cheapest thing here to reuse.
-- 3 sticky elements; breakpoint list is tiny — effectively just
+- 3 sticky elements; breakpoint list is tiny: effectively just
   `(max-width: 600px)` plus hover/pointer and reduced-motion queries.
 
 ## Note for Adapt work
 
 This site sits squarely on the cream `#f9f4ec` + terracotta `#b95b3d` +
 high-contrast-serif combination that `references/adaptation.md` names as the
-first AI-default tell. That is a legitimate choice *for this brand* — but it
+first AI-default tell. That is a legitimate choice *for this brand*, but it
 means an Adapt job that keeps the palette has almost certainly stopped adapting
 and started defaulting. Keep the token architecture, the band rhythm, the reveal
 gate and the type-role split; re-derive every colour and both faces.
 
 ## What was achieved
 
-Captured for Adapt only — no mirror built, no diff number. Extraction covered
+Captured for Adapt only: no mirror built, no diff number. Extraction covered
 tokens, rendered type/colour frequency, easing and duration tallies, breakpoints,
 section rhythm and the reveal mechanism. The derived build (a rebrand to a
 collaboration tool) lives outside the library, per the rule that mirrors and
