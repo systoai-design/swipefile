@@ -50,7 +50,7 @@ So a taste skill governs the gaps. Precedence, in order:
 
 ### A named technique library for step 3: `mengto-skills`
 
-`E:\New Claude\skills\mengto-skills\agent-skills\web-design\` (MIT-licensed,
+`<your skills dir>/mengto-skills/agent-skills/web-design/` (MIT-licensed,
 © Meng To; carry the notice if this build or a distributable ever ships any
 of its actual file content, per the license) is ~85 narrow, named skills:
 tested techniques (`scroll-scrubbed-word-reveal`, `marquee-loop`,

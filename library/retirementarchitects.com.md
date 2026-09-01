@@ -92,7 +92,7 @@ instead is a credibility gain, not a cost.
 
 ## What was built from it
 
-`E:\New Claude\Retirement Architects Site`: four pages (home, what we do, our
+The Retirement Architects site: four pages (home, what we do, our
 team, contact), Vite + Tailwind v4 + three.js, Systowise design system, Liquid
 Glass functional layer, WebGL income-structure hero. Design gate: 2 of 4 pages
 pass clean, 2 carry only deliberate reference-driven overrides.

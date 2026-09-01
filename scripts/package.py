@@ -36,7 +36,7 @@ NAME = os.path.basename(ROOT)
 # Everything the distributable is allowed to contain. Adding an artifact type
 # here is a deliberate act; forgetting to exclude one is not possible.
 ALLOW = (
-    ('', ('SKILL.md', 'README.md', 'SOURCE.txt')),
+    ('', ('SKILL.md', 'README.md', 'SOURCE.txt', 'LICENSE')),
     # Enumerated, not wildcarded: a de-identified measurements dump saved as
     # references/tokens.md is invisible to any content check (motion.md itself
     # legitimately carries six cubic-beziers), so a new doc costs one reviewed

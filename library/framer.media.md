@@ -17,7 +17,7 @@ against the **rebranded mirror ("Systo Estate")**, so every string reading
 `SYSTO`/`ESTATE` in the censuses below is build-side; the sizes, weights,
 colours and geometry around those strings are the reference's.
 
-Raw capture JSON, under `E:/New Claude/PC Care/swipefile-builds/systo-electrics/docs/`:
+Raw capture JSON, under `<build>/docs/`:
 `estate-motion.json` (88 animations), `estate-sections.json` (type/colour/
 radius/gap census), `estate-named.json` (56 named layers found, 45 recorded
 with geometry). Every number below traces to one of those three.

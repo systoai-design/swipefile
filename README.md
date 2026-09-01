@@ -9,7 +9,7 @@ motion, copy), **verifies every number by measurement** instead of describing it
 in prose, and remembers what it learned in a local library that gets smarter with
 every site it studies.
 
-It is a Claude Agent Skill. `SKILL.md` is the procedure an agent follows,
+It is an agent skill. `SKILL.md` is the procedure an agent follows,
 `scripts/` is the instrumentation that makes the procedure hold, `library/` is
 the accumulated memory, and this README is for the human deciding whether to
 install it.

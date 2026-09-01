@@ -6,7 +6,7 @@
 
 Surveyed 2026-08-21 via the public GitHub repo (`MengTo/threeui`, MIT, 1112 stars): README, file tree, and full source read for several components. Live `/browse` gallery structurally read (220 components, category filters: Landing Pages, Hero, Three.js, Backgrounds, Buttons, Text Animation, UI Elements, CSS, Motion Design, Sections) but **not visually screenshotted**. The in-app Browser pane hit this library's own documented "pane is not a measurement instrument" failure (`computer{screenshot}` errored "not displayed, so the page is not compositing frames"). Evidence here is source-level, not pixel-level; a future pass through CDP/headless would add the visual side.
 
-**Cloned locally 2026-08-28 to `E:\New Claude\threeui`** (141 MB, shallow). The
+**Cloned locally 2026-08-28** (141 MB, shallow). The
 2026-08-21 pass read the repo through the GitHub API; this one has the whole
 tree on disk, which settled the tier question below and corrected two things
 this note previously had to infer. Grep the clone rather than re-fetching.

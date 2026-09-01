@@ -1,7 +1,49 @@
-SOURCE: Anthropic-authored skill, installed 2026-07-27 from a .skill bundle,
-        originally distributed under the name `web-design-clone`.
-RENAMED: `swipefile` on 2026-07-30.
+ORIGIN
+------
+This skill began from a third-party `.skill` bundle distributed under the name
+`web-design-clone`, installed 2026-07-27 and renamed `swipefile` on 2026-07-30.
 
-Local additions since install: references/{mirror,crawl,verify,report}.md and
-scripts/{crawl,build,serve}.py, all derived from measured captures — see
-library/INDEX.md "Cross-site patterns observed" for the evidence behind each.
+An earlier version of this file recorded that bundle as "Anthropic-authored".
+That could not be confirmed and is not repeated here as fact: no skill of that
+name appears in Anthropic's published skills repository, and the original
+bundle is no longer on disk, so there is nothing left to check it against. It
+is recorded as unverified rather than dropped, because dropping it would be
+convenient and would also be the wrong way to resolve an open question.
+
+The same absence means the inherited fraction cannot be measured directly. So
+this note states what is verifiable instead.
+
+WHAT IS DEMONSTRABLY THIS REPOSITORY'S OWN WORK
+-----------------------------------------------
+Across 33 commits, 79 tracked files, ~24,000 lines:
+
+  library/     26 entries, each a measured teardown of a specific site, several
+               of them this author's own builds
+  scripts/     19 programs - crawl, build, serve, packaging, provenance, the
+               design and copy gates, motion extraction, library linting
+  scripts/tests/  14 test files covering them
+  references/  9 procedure documents
+  BUILDS.md    the log of what has actually been built with this
+  assets/      comparison captures from those builds
+
+The first commit alone already carried 12 library entries and a 10-file test
+suite, eleven days after the install. The measurement apparatus, the library
+that compounds, and the five-job structure the skill is organised around are
+this repository's.
+
+THIRD-PARTY MATERIAL: REFERENCED, NOT INCLUDED
+-----------------------------------------------
+`mengto-skills` (MIT, (c) Meng To) is pointed at by path in
+`references/taste.md` as a technique library to read. None of its file content
+ships here. If a build or a distributable ever includes any of it, carry the
+MIT notice, per its license.
+
+Library entries describe third-party sites by measurement - geometry, tokens,
+type metrics, easing curves - and do not reproduce their assets or markup. A
+Match build made with this skill is a local study and is not published; that
+distinction is stated in the skill itself and is what keeps the library
+publishable.
+
+LICENSE
+-------
+MIT, covering this repository's own contents. See LICENSE.

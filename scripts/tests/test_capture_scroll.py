@@ -24,6 +24,13 @@ class StubPage:
         if "scrollTo" in expr:
             self.y = int(expr.split(",")[1].strip(" )")); self.max_y = max(self.max_y, self.y)
             return None
+        # The canvas census returns a LIST. The catch-all below returns a dict,
+        # and iterating a dict yields its keys, so without this the census line
+        # in capture_at_width indexes a string and dies at import time - which
+        # this stub cannot report as a failed check, because it happens before
+        # the first check() runs.
+        if "querySelectorAll('canvas')" in expr:
+            return []
         return {"ok": True}
 
 out = pathlib.Path(tempfile.mkdtemp())

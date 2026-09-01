@@ -76,11 +76,27 @@ def main():
 
     print(f'\n{"=" * 68}')
     total_ok = total_bad = 0
+    # A suite that dies before its first check() prints no PASS/FAIL lines, so
+    # it contributes nothing to either tally. Counting lines alone once produced
+    # the headline "476 passed, 0 failed" while a suite was crashing at import -
+    # a green number covering a red run. Crashes and skips are counted and named
+    # separately, because they are the outcomes a line count cannot see.
+    crashed = [n for n, ok, np_, nf in results if not ok and nf == 0]
+    skipped = [n for n, ok, np_, nf in results if ok and np_ == 0 and nf == 0]
     for name, ok, npass, nfail in results:
         total_ok += npass
         total_bad += nfail
-        print(f'  {"ok  " if ok else "FAIL"}  {name:<9} {npass:>3} passed  {nfail:>3} failed')
-    print(f'{"=" * 68}\n{total_ok} passed, {total_bad} failed')
+        if ok:
+            state = 'skip' if name in skipped else 'ok  '
+        else:
+            state = 'CRSH' if name in crashed else 'FAIL'
+        print(f'  {state}  {name:<9} {npass:>3} passed  {nfail:>3} failed')
+    head = f'{total_ok} passed, {total_bad} failed'
+    if crashed:
+        head += f', {len(crashed)} CRASHED ({", ".join(crashed)})'
+    if skipped:
+        head += f' - skipped: {", ".join(skipped)}'
+    print(f'{"=" * 68}\n{head}')
     sys.exit(1 if any(not ok for _, ok, _, _ in results) else 0)
 
 
