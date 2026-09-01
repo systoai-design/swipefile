@@ -22,10 +22,13 @@ try:
 except ImportError:
     print('SKIP  motion — `websockets` not installed (pip install websockets)')
     sys.exit(0)
-if not any(os.path.exists(p) for p in (
-        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-        '/Applications/Chromium.app/Contents/MacOS/Chromium')) and not (
-        shutil.which('google-chrome') or shutil.which('chromium')):
+# Ask the instrument itself where Chrome is, rather than keeping a second
+# copy of the list here - the copy that used to live in this file named only
+# the macOS paths, so this suite skipped on every Windows run.
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location('cdp_run', os.path.join(SCRIPTS, 'cdp-run.py'))
+_cdp = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_cdp)
+if not _cdp.chrome_available():
     print('SKIP  motion — no Chrome found')
     sys.exit(0)
 

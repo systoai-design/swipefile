@@ -1,42 +1,52 @@
-ORIGIN
-------
-This skill began from a third-party `.skill` bundle distributed under the name
-`web-design-clone`, installed 2026-07-27 and renamed `swipefile` on 2026-07-30.
+ORIGIN AND ATTRIBUTION
+---------------------
+This skill began from `web-design-clone`, an Anthropic-authored skill, installed
+2026-07-27 from a .skill bundle and renamed `swipefile` on 2026-07-30.
 
-An earlier version of this file recorded that bundle as "Anthropic-authored".
-That could not be confirmed and is not repeated here as fact: no skill of that
-name appears in Anthropic's published skills repository, and the original
-bundle is no longer on disk, so there is nothing left to check it against. It
-is recorded as unverified rather than dropped, because dropping it would be
-convenient and would also be the wrong way to resolve an open question.
+That attribution is confirmed. The skill ships today as
+`anthropic-skills:web-design-clone`. It is worth noting for anyone who tries to
+check it that it does NOT appear in the public `anthropics/skills` repository on
+GitHub - a search there comes back empty and can be mistaken for evidence that
+the skill does not exist.
 
-The same absence means the inherited fraction cannot be measured directly. So
-this note states what is verifiable instead.
+WHAT WAS INHERITED, MEASURED
+----------------------------
+Compared by 8-word shingle overlap against the current upstream text:
 
-WHAT IS DEMONSTRABLY THIS REPOSITORY'S OWN WORK
------------------------------------------------
-Across 33 commits, 79 tracked files, ~24,000 lines:
+  of swipefile's SKILL.md, inherited        7.7%   (~68 of 888 lines)
+  of the whole repository                   0.28%  (of 24,287 lines)
+  of the ancestor's own body, still present 72%    (inside a document 18x its length)
 
-  library/     26 entries, each a measured teardown of a specific site, several
-               of them this author's own builds
-  scripts/     19 programs - crawl, build, serve, packaging, provenance, the
-               design and copy gates, motion extraction, library linting
-  scripts/tests/  14 test files covering them
-  references/  9 procedure documents
-  BUILDS.md    the log of what has actually been built with this
-  assets/      comparison captures from those builds
+Both directions matter and they say different things. The second column is why
+this is fairly called a different skill; the third is why the attribution above
+is not a formality. Substantial passages of the original survive largely intact.
 
-The first commit alone already carried 12 library entries and a 10-file test
-suite, eleven days after the install. The measurement apparatus, the library
-that compounds, and the five-job structure the skill is organised around are
-this repository's.
+Inherited: the Match/Adapt distinction and the argument for separating them, the
+"you cannot see a live page" constraint and the capture -> spec -> build -> diff
+response to it, the shape of Steps 1-4, "Copying, and where the line is", and
+"Failure modes worth watching for".
 
-THIRD-PARTY MATERIAL: REFERENCED, NOT INCLUDED
------------------------------------------------
+Added here: three further jobs (Audit, Transfer, Brand), Step 0 (consult the
+library), Step 0.5 (brief the gaps), Step 5 (record what you learned), the
+fidelity bar for Match, and the portability section - plus the entire
+measurement apparatus the skill is now organised around:
+
+  library/        26 measured teardowns, several of this author's own builds
+  scripts/        19 programs - crawl, build, serve, packaging, provenance,
+                  the design and copy gates, motion extraction, library linting
+  scripts/tests/  14 suites, 525 checks
+  references/     9 procedure documents
+  BUILDS.md       the log of what has actually been built with this
+
+The first commit already carried 12 library entries and a 10-file suite, eleven
+days after the install.
+
+OTHER THIRD-PARTY MATERIAL: REFERENCED, NOT INCLUDED
+----------------------------------------------------
 `mengto-skills` (MIT, (c) Meng To) is pointed at by path in
 `references/taste.md` as a technique library to read. None of its file content
-ships here. If a build or a distributable ever includes any of it, carry the
-MIT notice, per its license.
+ships here. If a build or a distributable ever includes any of it, carry the MIT
+notice, per its license.
 
 Library entries describe third-party sites by measurement - geometry, tokens,
 type metrics, easing curves - and do not reproduce their assets or markup. A
@@ -46,4 +56,6 @@ publishable.
 
 LICENSE
 -------
-MIT, covering this repository's own contents. See LICENSE.
+MIT, covering this repository's own contents. See LICENSE. The inherited
+portions described above remain the work of their original author and are
+credited here rather than absorbed silently.

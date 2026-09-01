@@ -24,19 +24,30 @@ try:
 except ImportError:
     print('SKIP  font — `websockets` not installed (pip install websockets)')
     sys.exit(0)
-if not any(os.path.exists(p) for p in (
-        '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
-        '/Applications/Chromium.app/Contents/MacOS/Chromium')) and not (
-        shutil.which('google-chrome') or shutil.which('chromium')):
+# Ask the instrument itself where Chrome is, rather than keeping a second
+# copy of the list here - the copy that used to live in this file named only
+# the macOS paths, so this suite skipped on every Windows run.
+import importlib.util as _ilu
+_spec = _ilu.spec_from_file_location('cdp_run', os.path.join(SCRIPTS, 'cdp-run.py'))
+_cdp = _ilu.module_from_spec(_spec); _spec.loader.exec_module(_cdp)
+if not _cdp.chrome_available():
     print('SKIP  font — no Chrome found')
     sys.exit(0)
 
 # A real face with metrics obviously unlike any sans-serif, so "the requested
 # face is painting" is a measurable claim rather than an assumption.
+# Monospace on purpose: the probe has to have metrics no sans-serif fallback
+# could be mistaken for, or the A/B cannot tell a loaded face from a silent
+# substitution. Windows keeps its fonts outside the Unix paths below, so
+# without those three entries this suite skipped on every Windows run.
+_WINFONTS = os.path.expandvars(r'%WINDIR%\Fonts')
 TTF = next((p for p in ('/System/Library/Fonts/Supplemental/Courier New.ttf',
                         '/System/Library/Fonts/Supplemental/Andale Mono.ttf',
                         '/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf',
-                        '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf')
+                        '/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf',
+                        os.path.join(_WINFONTS, 'cour.ttf'),
+                        os.path.join(_WINFONTS, 'consola.ttf'),
+                        os.path.join(_WINFONTS, 'lucon.ttf'))
             if os.path.exists(p)), None)
 if not TTF:
     print('SKIP  font — no system TTF available to serve as a probe face')

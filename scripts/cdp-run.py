@@ -47,6 +47,18 @@ def find_chrome(explicit=None):
     sys.exit('no Chrome found — pass --chrome /path/to/chrome')
 
 
+def chrome_available():
+    """Same search, for callers that must skip rather than exit.
+
+    Suites that need a browser used to carry their own copy of the candidate
+    list, and those copies only ever listed the macOS paths. On Windows, where
+    Chrome installs outside PATH, they skipped on every run of a machine that
+    had Chrome - reporting 'no Chrome found' as a clean skip, so nothing ever
+    looked wrong. One list, one predicate, no second copy to fall behind.
+    """
+    return any(p and os.path.exists(p) for p in CHROME_CANDIDATES)
+
+
 def free_port():
     s = socket.socket()
     s.bind(('127.0.0.1', 0))
